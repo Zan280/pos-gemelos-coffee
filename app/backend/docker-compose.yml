@@ -1,0 +1,56 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: always
+    volumes:
+      - type: bind
+        source: ./  # Ruta en el host
+        target: /code  # Ruta en el contenedor
+    ports:
+      - "8000:8000" # Cambia el puerto según sea necesario
+    command: bash -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1k"
+        max-file: "3"
+    networks:
+      - app
+    depends_on:
+      - db
+    links:
+      - db
+
+
+  db:
+    container_name: db
+    image: mysql:8.0
+    restart: always
+    command: mysqld --default-authentication-plugin=mysql_native_password
+    volumes:
+      - /srv/data/media/db:/var/lib/mysql
+    env_file:
+      - ./.env
+    environment:
+      - MYSQL_ROOT_PASSWORD=${SQL_ROOT_PASSWORD}
+      - MYSQL_USER=${SQL_USER}
+      - MYSQL_PASSWORD=${SQL_PASSWORD}
+      - MYSQL_DATABASE=${SQL_DATABASE}
+    ports:
+      - 3306:3306
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1k"
+        max-file: "3"
+    networks:
+      - app
+
+
+
+networks:
+  app:
+   external: true
