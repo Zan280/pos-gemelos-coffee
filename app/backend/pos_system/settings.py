@@ -38,20 +38,21 @@ if env_path.exists():
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-demo-showcase-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 't', 'yes')
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't', 'yes')
 
-allowed_hosts_str = os.environ.get('DJANGO_ALLOWED_HOSTS')
-if allowed_hosts_str:
-    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(' ') if host.strip()]
+# Soporta tanto ALLOWED_HOSTS como DJANGO_ALLOWED_HOSTS, y separa por comas o espacios
+allowed_hosts_raw = os.environ.get('ALLOWED_HOSTS') or os.environ.get('DJANGO_ALLOWED_HOSTS')
+if allowed_hosts_raw:
+    delimiter = ',' if ',' in allowed_hosts_raw else ' '
+    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_raw.split(delimiter) if host.strip()]
 else:
-    ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0', '[::1]']
+    ALLOWED_HOSTS = ['127.0.0.1', '127.0.0.1', 'localhost', '0.0.0.0', 'gemelos_backend']
 
 csrf_trusted_str = os.environ.get('CSRF_TRUSTED_ORIGINS')
 if csrf_trusted_str:
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_str.split(',') if origin.strip()]
 else:
-    CSRF_TRUSTED_ORIGINS = []
-
+    CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1', 'http://localhost']
 
 # Application definition
 

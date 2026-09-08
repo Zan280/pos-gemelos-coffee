@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { getValidAccessToken, logout } from './auth';
 
-// Obtiene la URL base desde las variables de entorno
-const rawBaseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
-const baseURL = rawBaseURL.endsWith('/') ? rawBaseURL : `${rawBaseURL}/`;
+// En producción relativa usa '/api', o la variable de entorno si existe
+const baseURL = process.env.REACT_APP_API_BASE_URL || '/api';
 
 // Crea una instancia de axios para la configuración global
 const axiosInstance = axios.create({
@@ -29,7 +28,6 @@ axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response && error.response.status === 401) {
-            // Si el token es rechazado por el servidor
             logout();
             if (window.location.pathname !== '/login') {
                 window.location.href = '/login';

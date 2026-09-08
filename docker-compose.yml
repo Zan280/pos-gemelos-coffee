@@ -17,9 +17,9 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "${SQL_PORT:-3306}:3306"
+      - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${SQL_ROOT_PASSWORD:-root_db_password_example}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${SQL_ROOT_PASSWORD:-root_db_password_example}"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -55,7 +55,7 @@ services:
       - backend_static:/code/staticfiles
       - backend_media:/code/media
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -69,17 +69,18 @@ services:
     build:
       context: ./app/frontend
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_BASE_URL=/api
     container_name: gemelos_frontend
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-/api}
     volumes:
+      - ./app/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - backend_media:/media:ro
       - backend_static:/staticfiles:ro
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "80:80"
     depends_on:
       - backend
     networks:

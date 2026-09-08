@@ -74,3 +74,4 @@ codigo_gemelos.txt
 Dockerfile.save
 *.save
 
+.env

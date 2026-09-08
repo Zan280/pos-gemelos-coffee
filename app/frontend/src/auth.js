@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const rawBaseURL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000/api";
+const rawBaseURL = process.env.REACT_APP_API_BASE_URL || "/api";
 const cleanBaseURL = rawBaseURL.endsWith("/") ? rawBaseURL.slice(0, -1) : rawBaseURL;
 const LOGIN_URL = `${cleanBaseURL}/login/`;
 
