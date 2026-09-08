@@ -5,11 +5,17 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-[#FBF9F5] text-slate-800 font-sans antialiased selection:bg-amber-200 selection:text-amber-900 min-h-screen;
+  html, body, #root {
+    width: 100%;
+    min-height: 100%;
     margin: 0;
+    padding: 0;
+  }
+  body {
+    @apply bg-[#FAF7F2] text-slate-800 font-sans antialiased selection:bg-amber-200 selection:text-amber-900;
   }
 }
+
 
 /* Glassmorphism effects */
 .glass {

@@ -85,9 +85,9 @@ export default function Home() {
       {/* ==================================================== */}
       {/* TARJETAS DE ACCESO RÁPIDO Y MÉTRICAS                 */}
       {/* ==================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
         {/* Tarjeta 1: Terminal de Ventas */}
-        <div className="group rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-sm border border-amber-900/10 hover:shadow-xl hover:border-amber-400 transition-all flex flex-col justify-between">
+        <div className="group rounded-3xl bg-white p-6 shadow-sm border border-stone-200/80 hover:shadow-xl hover:border-amber-400 transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="h-12 w-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -123,7 +123,8 @@ export default function Home() {
         </div>
 
         {/* Tarjeta 2: Catálogo de Inventario */}
-        <div className="group rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-sm border border-amber-900/10 hover:shadow-xl hover:border-amber-400 transition-all flex flex-col justify-between">
+        <div className="group rounded-3xl bg-white p-6 shadow-sm border border-stone-200/80 hover:shadow-xl hover:border-amber-400 transition-all flex flex-col justify-between">
+
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="h-12 w-12 rounded-2xl bg-amber-900 text-amber-100 flex items-center justify-center group-hover:scale-105 transition-transform">

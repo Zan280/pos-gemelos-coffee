@@ -54,7 +54,7 @@ const Login = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#FBF9F5] px-4 py-12 transition-colors duration-300 overflow-hidden font-sans">
+    <div className="relative flex min-h-screen w-full items-center justify-center bg-[#FAF7F2] px-4 py-12 transition-colors duration-300 overflow-hidden font-sans">
       {/* Fondo con halos decorativos de café y ámbar cálido */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-[30%] -left-[15%] h-[75%] w-[55%] rounded-full bg-amber-500/10 blur-[130px]" />
@@ -64,7 +64,8 @@ const Login = () => {
 
       {/* Tarjeta de Login Principal */}
       <div className="w-full max-w-md animate-fade-in relative z-10">
-        <div className="glass-card rounded-3xl p-8 sm:p-10 shadow-2xl transition-all duration-300 border border-amber-900/10">
+        <div className="glass-card bg-white/95 rounded-3xl p-8 sm:p-10 shadow-2xl transition-all duration-300 border border-amber-900/10">
+
           
           {/* Encabezado e Identidad de Marca */}
           <div className="flex flex-col items-center text-center mb-8">

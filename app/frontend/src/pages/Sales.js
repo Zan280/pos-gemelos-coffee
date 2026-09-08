@@ -131,12 +131,12 @@ export default function Sales() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full font-sans animate-fade-in">
+    <div className="flex flex-col xl:flex-row gap-6 h-full w-full font-sans animate-fade-in">
       
       {/* ==================================================== */}
       {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS              */}
       {/* ==================================================== */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white/80 backdrop-blur-md rounded-3xl p-5 sm:p-6 shadow-xl border border-amber-900/10 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-stone-200/80 overflow-hidden">
         
         {/* Barra superior de herramientas y filtros */}
         <div className="flex flex-col sm:flex-row gap-3.5 items-stretch sm:items-center justify-between mb-5">
@@ -147,11 +147,11 @@ export default function Sales() {
               placeholder="Buscar producto por nombre..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-2xl bg-slate-100/90 border border-slate-200/80 py-2.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all"
+              className="w-full rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 overflow-x-auto">
+          <div className="flex items-center gap-1.5 p-1 bg-stone-100 rounded-2xl border border-stone-200/60 overflow-x-auto">
             <button
               onClick={() => setSelectedFilter("all")}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
@@ -207,7 +207,7 @@ export default function Sales() {
               <p className="text-xs text-slate-400 mt-1">Prueba cambiando el término de búsqueda o filtro</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               {filteredProducts.map((product) => {
                 const isOutOfStock = product.stock <= 0;
                 const isLowStock = product.stock > 0 && product.stock <= 5;
@@ -219,8 +219,8 @@ export default function Sales() {
                     onClick={() => !isOutOfStock && addToCart(product, 1)}
                     className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 transition-all duration-200 select-none ${
                       isOutOfStock
-                        ? "bg-slate-50 border-slate-200/60 opacity-60 cursor-not-allowed"
-                        : "bg-white hover:bg-amber-50/40 border-slate-200/80 hover:border-amber-400 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.98]"
+                        ? "bg-stone-50 border-stone-200/60 opacity-60 cursor-not-allowed"
+                        : "bg-white hover:bg-amber-50/40 border-stone-200/80 hover:border-amber-400 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.98]"
                     }`}
                   >
                     {/* Badge de cantidad ya en carrito */}
@@ -231,7 +231,7 @@ export default function Sales() {
                     )}
 
                     {/* Imagen del producto */}
-                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-100 mb-3 flex items-center justify-center">
+                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-stone-100 mb-3 flex items-center justify-center">
                       {product.image ? (
                         <img
                           src={getImageUrl(product.image)}
@@ -290,7 +290,8 @@ export default function Sales() {
       {/* ==================================================== */}
       {/* PANEL DERECHO: CARRITO / TERMINAL DE VENTA           */}
       {/* ==================================================== */}
-      <div className="w-full lg:w-96 flex flex-col bg-white/90 backdrop-blur-md rounded-3xl p-5 sm:p-6 shadow-2xl border border-amber-900/10">
+      <div className="w-full xl:w-[400px] 2xl:w-[440px] shrink-0 flex flex-col bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-stone-200/80">
+
         {/* Cabecera del Carrito */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 mb-4">
           <div className="flex items-center gap-2.5">

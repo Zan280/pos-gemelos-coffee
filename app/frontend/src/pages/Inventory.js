@@ -179,7 +179,7 @@ export default function Inventory() {
   };
 
   return (
-    <div className="space-y-6 font-sans animate-fade-in">
+    <div className="space-y-6 w-full font-sans animate-fade-in pb-8">
       
       {/* ==================================================== */}
       {/* CABECERA Y MÉTRICAS SUPERIORES                      */}
@@ -205,8 +205,8 @@ export default function Inventory() {
         </div>
 
         {/* Tarjetas de Métricas */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-3xl bg-white/80 backdrop-blur-md p-4 sm:p-5 shadow-sm border border-amber-900/10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+          <div className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm border border-stone-200/80">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
                 <Package className="w-5 h-5" />
@@ -220,7 +220,7 @@ export default function Inventory() {
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white/80 backdrop-blur-md p-4 sm:p-5 shadow-sm border border-amber-900/10">
+          <div className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm border border-stone-200/80">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
                 <DollarSign className="w-5 h-5" />
@@ -236,7 +236,7 @@ export default function Inventory() {
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white/80 backdrop-blur-md p-4 sm:p-5 shadow-sm border border-amber-900/10">
+          <div className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm border border-stone-200/80">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5" />
@@ -250,7 +250,7 @@ export default function Inventory() {
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white/80 backdrop-blur-md p-4 sm:p-5 shadow-sm border border-amber-900/10">
+          <div className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm border border-stone-200/80">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-2xl bg-red-100 text-red-700 flex items-center justify-center">
                 <AlertCircle className="w-5 h-5" />
@@ -259,7 +259,7 @@ export default function Inventory() {
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   Agotados
                 </p>
-                <p className="text-xl font-black text-red-700">{metrics.outOfStockCount}</p>
+                <p className="text-xl font-black text-red-600">{metrics.outOfStockCount}</p>
               </div>
             </div>
           </div>
@@ -267,6 +267,7 @@ export default function Inventory() {
       </div>
 
       {/* Alerta de Feedback */}
+
       {feedbackMsg.text && (
         <div
           className={`flex items-center justify-between p-4 rounded-2xl text-xs sm:text-sm animate-fade-in ${
@@ -295,7 +296,7 @@ export default function Inventory() {
       {/* ==================================================== */}
       {/* TABLA DE INVENTARIO Y FILTROS                       */}
       {/* ==================================================== */}
-      <div className="bg-white/90 backdrop-blur-md rounded-3xl p-5 sm:p-6 shadow-xl border border-amber-900/10 space-y-4">
+      <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-stone-200/80 space-y-4 w-full">
         {/* Barra de Filtros */}
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           <div className="relative flex-1 max-w-md">
@@ -305,9 +306,10 @@ export default function Inventory() {
               placeholder="Buscar por nombre de producto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-2xl bg-slate-100/90 border border-slate-200/80 py-2.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all"
+              className="w-full rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all"
             />
           </div>
+
 
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 overflow-x-auto">
             <button

@@ -74,7 +74,7 @@ export default function Layout({ children }) {
   });
 
   return (
-    <div className="flex h-screen bg-[#FBF9F5] overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-[#FAF7F2] overflow-hidden font-sans">
       {/* Overlay para móviles */}
       {sidebarOpen && (
         <div
@@ -87,7 +87,7 @@ export default function Layout({ children }) {
       {/* SIDEBAR                                    */}
       {/* ========================================== */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-[#1A0F07] text-amber-50/90 shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col bg-[#1A0F07] text-amber-50/90 shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -206,11 +206,11 @@ export default function Layout({ children }) {
       </aside>
 
       {/* ========================================== */}
-      {/* ÁREA DE CONTENIDO PRINCIPAL                */}
+      {/* ÁREA DE CONTENIDO PRINCIPAL (FULL WIDTH)   */}
       {/* ========================================== */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {/* Topbar Superior */}
-        <header className="flex h-16 items-center justify-between bg-white/80 backdrop-blur-md px-4 sm:px-8 border-b border-amber-900/10 z-30">
+        <header className="flex h-16 shrink-0 items-center justify-between bg-white/90 backdrop-blur-md px-4 sm:px-8 border-b border-amber-900/10 z-30 shadow-sm">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -231,7 +231,7 @@ export default function Layout({ children }) {
 
           <div className="flex items-center gap-4">
             {/* Reloj en Vivo */}
-            <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-600 bg-slate-100/80 px-3.5 py-1.5 rounded-xl border border-slate-200/60">
+            <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-600 bg-stone-100/90 px-3.5 py-1.5 rounded-xl border border-stone-200/70">
               <Clock className="w-3.5 h-3.5 text-amber-700" />
               <span>{formattedDate}</span>
               <span className="text-slate-300">|</span>
@@ -260,9 +260,9 @@ export default function Layout({ children }) {
           </div>
         </header>
 
-        {/* Vista dinámica / Página */}
-        <main className="flex-1 overflow-y-auto bg-[#FBF9F5] p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto h-full">
+        {/* Vista dinámica / Página fluida 100% de ancho */}
+        <main className="flex-1 overflow-y-auto bg-[#FAF7F2] p-4 sm:p-6 lg:p-8 w-full flex flex-col">
+          <div className="w-full min-h-full flex flex-col flex-1">
             {children}
           </div>
         </main>
@@ -270,3 +270,4 @@ export default function Layout({ children }) {
     </div>
   );
 }
+
