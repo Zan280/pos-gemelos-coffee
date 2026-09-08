@@ -1,16 +1,14 @@
-from django.db.models.signals import pre_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import SaleItem
 
-@receiver(pre_save, sender=SaleItem)
-def adjust_price(sender, instance, **kwargs):
+@receiver(post_save, sender=SaleItem)
+@receiver(post_delete, sender=SaleItem)
+def update_sale_total_on_item_change(sender, instance, **kwargs):
     """
-    Calcula el precio total cuando un SaleItem es guardado, pero no ajusta el stock aquí.
+    Actualiza automáticamente el total_price del modelo Sale cuando se crea,
+    modifica o elimina un SaleItem.
     """
-    # Asegúrate de que el objeto es una instancia de SaleItem
-    if instance.product and instance.sale:
-        # Calcula el precio total para este SaleItem
-        instance.price = instance.product.price * instance.quantity
-
-        # Actualiza el precio total de la venta asociada
+    if instance.sale_id:
         instance.sale.update_total_price()
+
