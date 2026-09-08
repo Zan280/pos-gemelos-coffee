@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axiosInstance from "../axiosConfig";
+import { useToast } from "../context/ToastContext";
 import { 
   TrendingUp, 
   DollarSign, 
@@ -20,6 +21,7 @@ import {
 
 
 export default function Reports() {
+  const { showToast } = useToast();
   const [stats, setStats] = useState(null);
   const [salesList, setSalesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,11 +40,13 @@ export default function Reports() {
       setSalesList(salesRes.data);
     } catch (err) {
       console.error("Error al cargar reportes y estadísticas:", err);
+      showToast("Error al cargar las métricas y reportes", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchReportsData();
   }, []);
@@ -94,7 +98,10 @@ export default function Reports() {
   };
 
   const handleExportCSV = () => {
-    if (salesList.length === 0) return;
+    if (salesList.length === 0) {
+      showToast("No hay ventas registradas para exportar", "warning");
+      return;
+    }
     const headers = ["Ticket ID", "Fecha", "Hora", "Cajero", "Metodo Pago", "Total (C$)"];
     const rows = salesList.map((s) => {
       const d = new Date(s.created_at);
@@ -116,6 +123,7 @@ export default function Reports() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    showToast("Reporte de ventas exportado exitosamente en CSV", "success");
   };
 
   return (

@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import './App.css';
 import { CartProvider } from "./context/CartContext";
+import { ToastProvider } from "./context/ToastContext";
 import Layout from "./components/Layout";
 import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
@@ -42,80 +43,83 @@ function App() {
   }, []);
 
   return (
-    <CartProvider>
-      <Router>
-        <Routes>
-          {/* Ruta pública para login */}
-          <Route path="/login" element={<Login />} />
+    <ToastProvider>
+      <CartProvider>
+        <Router>
+          <Routes>
+            {/* Ruta pública para login */}
+            <Route path="/login" element={<Login />} />
 
-          {/* Redirección raíz a Home (protegido) */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
+            {/* Redirección raíz a Home (protegido) */}
+            <Route path="/" element={<Navigate to="/home" replace />} />
 
-          {/* Rutas privadas protegidas envueltas en Layout */}
-          <Route 
-            path="/home" 
-            element={
-              <PrivateRoute>
-                <Layout>
-                  <Home />
-                </Layout>
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path="/inventory" 
-            element={
-              <PrivateRoute>
-                <Layout>
-                  <Inventory />
-                </Layout>
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path="/sales" 
-            element={
-              <PrivateRoute>
-                <Layout>
-                  <Sales />
-                </Layout>
-              </PrivateRoute>
-            } 
-          />
+            {/* Rutas privadas protegidas envueltas en Layout */}
+            <Route 
+              path="/home" 
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Home />
+                  </Layout>
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/inventory" 
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Inventory />
+                  </Layout>
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/sales" 
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Sales />
+                  </Layout>
+                </PrivateRoute>
+              } 
+            />
 
-          {/* Rutas exclusivas para Administradores (RBAC) */}
-          <Route 
-            path="/kardex" 
-            element={
-              <AdminRoute>
-                <Layout>
-                  <Kardex />
-                </Layout>
-              </AdminRoute>
-            } 
-          />
-          <Route 
-            path="/reports" 
-            element={
-              <AdminRoute>
-                <Layout>
-                  <Reports />
-                </Layout>
-              </AdminRoute>
-            } 
-          />
+            {/* Rutas exclusivas para Administradores (RBAC) */}
+            <Route 
+              path="/kardex" 
+              element={
+                <AdminRoute>
+                  <Layout>
+                    <Kardex />
+                  </Layout>
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/reports" 
+              element={
+                <AdminRoute>
+                  <Layout>
+                    <Reports />
+                  </Layout>
+                </AdminRoute>
+              } 
+            />
 
-          {/* Redirecciones de compatibilidad */}
-          <Route path="/checkout" element={<Navigate to="/sales" replace />} />
-          <Route path="/success" element={<Navigate to="/sales" replace />} />
+            {/* Redirecciones de compatibilidad */}
+            <Route path="/checkout" element={<Navigate to="/sales" replace />} />
+            <Route path="/success" element={<Navigate to="/sales" replace />} />
 
-          {/* Ruta comodín para capturar 404 y redirigir a Home */}
-          <Route path="*" element={<Navigate to="/home" replace />} />
-        </Routes>
-      </Router>
-    </CartProvider>
+            {/* Ruta comodín para capturar 404 y redirigir a Home */}
+            <Route path="*" element={<Navigate to="/home" replace />} />
+          </Routes>
+        </Router>
+      </CartProvider>
+    </ToastProvider>
   );
 }
+
 
 export default App;
 

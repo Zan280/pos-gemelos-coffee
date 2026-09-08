@@ -306,8 +306,9 @@ class ReportsStatsView(APIView):
                 "count": pm['count'],
                 "total": float(pm['total'] or 0)
             }
-            for pm in payment_methods
+            for pm in payment_methods_query
         ]
+
 
         return Response({
             "kpis": {

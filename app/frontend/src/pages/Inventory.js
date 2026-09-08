@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import axiosInstance from "../axiosConfig";
+import { useToast } from "../context/ToastContext";
 import { 
   Package, 
   Search, 
@@ -36,7 +37,9 @@ export default function Inventory() {
   const [deleteModalProduct, setDeleteModalProduct] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState({ type: "", text: "" });
 
+  const { showToast } = useToast();
   const fileInputRef = useRef(null);
+
 
   // Helper para resolver URL de imágenes
   const getImageUrl = (imagePath) => {
@@ -144,12 +147,12 @@ export default function Inventory() {
         await axiosInstance.patch(`products/${editingProduct.id}/`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setFeedbackMsg({ type: "success", text: `Producto "${form.name}" actualizado correctamente.` });
+        showToast(`Producto "${form.name}" actualizado correctamente.`, "success");
       } else {
         await axiosInstance.post("products/", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setFeedbackMsg({ type: "success", text: `Producto "${form.name}" creado con éxito.` });
+        showToast(`Producto "${form.name}" creado con éxito.`, "success");
       }
 
       setShowModal(false);
@@ -158,6 +161,7 @@ export default function Inventory() {
       console.error("Error al guardar producto:", error);
       const errDetail = error.response?.data?.error || error.response?.data?.name?.[0] || "Error al guardar el producto.";
       setFeedbackMsg({ type: "error", text: errDetail });
+      showToast(errDetail, "error");
     } finally {
       setSaving(false);
     }
@@ -169,14 +173,15 @@ export default function Inventory() {
 
     try {
       await axiosInstance.delete(`products/${deleteModalProduct.id}/`);
-      setFeedbackMsg({ type: "success", text: `Producto "${deleteModalProduct.name}" eliminado.` });
+      showToast(`Producto "${deleteModalProduct.name}" eliminado correctamente.`, "success");
       setDeleteModalProduct(null);
       fetchProducts();
     } catch (error) {
       console.error("Error al eliminar producto:", error);
-      setFeedbackMsg({ type: "error", text: "No se pudo eliminar el producto." });
+      showToast("No se pudo eliminar el producto.", "error");
     }
   };
+
 
   return (
     <div className="space-y-6 w-full font-sans animate-fade-in pb-8">

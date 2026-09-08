@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axiosInstance from "../axiosConfig";
 import { useCart } from "../context/CartContext";
+import { useToast } from "../context/ToastContext";
 import { 
   Search, 
   ShoppingBag, 
@@ -31,6 +32,8 @@ export default function Sales() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
+  const { showToast } = useToast();
+
   const {
     cartItems,
     addToCart,
@@ -41,6 +44,7 @@ export default function Sales() {
     totalItems,
     totalPrice,
   } = useCart();
+
 
   const user = getUser() || { username: "Cajero" };
 
@@ -119,16 +123,20 @@ export default function Sales() {
       // Limpiar carrito y refrescar inventario de productos
       clearCart();
       setShowConfirmModal(false);
+      showToast(`¡Venta #${saleData.sale_id || saleData.sale?.id || ""} registrada con éxito!`, "success");
       fetchProducts();
     } catch (err) {
       console.error("Error al procesar la venta:", err);
       const backendError = err.response?.data?.error || err.response?.data?.detail;
-      setErrorMessage(backendError || "Ocurrió un error al procesar la venta.");
+      const finalMsg = backendError || "Ocurrió un error al procesar la venta.";
+      setErrorMessage(finalMsg);
+      showToast(finalMsg, "error");
       setShowConfirmModal(false);
     } finally {
       setIsProcessing(false);
     }
   };
+
 
   return (
     <div className="flex flex-col xl:flex-row gap-6 h-full w-full font-sans animate-fade-in">

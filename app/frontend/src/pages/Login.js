@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login, isAuthenticated } from "../auth";
+import { useToast } from "../context/ToastContext";
 import { Coffee, User, Lock, Eye, EyeOff, AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 const Login = () => {
+  const { showToast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +31,9 @@ const Login = () => {
 
     const trimmedUsername = username.trim();
     if (!trimmedUsername || !password) {
-      setErrorMsg("Por favor, ingresa tu usuario y contraseña.");
+      const msg = "Por favor, ingresa tu usuario y contraseña.";
+      setErrorMsg(msg);
+      showToast(msg, "warning");
       return;
     }
 
@@ -37,17 +41,19 @@ const Login = () => {
 
     try {
       await login(trimmedUsername, password);
+      showToast(`¡Bienvenido a Gemelos Coffee, ${trimmedUsername}!`, "success");
       navigate(from, { replace: true });
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
+      let msg = "Ocurrió un error inesperado. Intenta de nuevo.";
       if (error.response && error.response.data) {
         const data = error.response.data;
-        setErrorMsg(data.detail || data.error || "Credenciales inválidas. Verifica tu usuario y contraseña.");
+        msg = data.detail || data.error || "Credenciales inválidas. Verifica tu usuario y contraseña.";
       } else if (error.request) {
-        setErrorMsg("No se pudo contactar al servidor. Verifica que el backend esté en ejecución.");
-      } else {
-        setErrorMsg("Ocurrió un error inesperado. Intenta de nuevo.");
+        msg = "No se pudo contactar al servidor. Verifica que el backend esté en ejecución.";
       }
+      setErrorMsg(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

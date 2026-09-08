@@ -1,73 +1,97 @@
 services:
+  # ----------------------------------------------------------------------------
+  # 1. BASE DE DATOS: MySQL 8.0
+  # ----------------------------------------------------------------------------
+  db:
+    image: mysql:8.0
+    container_name: gemelos_db
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    env_file:
+      - .env
+    environment:
+      - MYSQL_ROOT_PASSWORD=${SQL_ROOT_PASSWORD:-root_db_password_example}
+      - MYSQL_DATABASE=${SQL_DATABASE:-pos_database}
+      - MYSQL_USER=${SQL_USER:-pos_user}
+      - MYSQL_PASSWORD=${SQL_PASSWORD:-pos_user_db_password_example}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "${SQL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${SQL_ROOT_PASSWORD:-root_db_password_example}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - gemelos_net
+
+  # ----------------------------------------------------------------------------
+  # 2. BACKEND: Django REST Framework con Gunicorn
+  # ----------------------------------------------------------------------------
   backend:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
     container_name: gemelos_backend
     restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE=${DATABASE:-mysql}
+      - SQL_ENGINE=${SQL_ENGINE:-django.db.backends.mysql}
+      - SQL_HOST=db
+      - SQL_PORT=3306
+      - SQL_DATABASE=${SQL_DATABASE:-pos_database}
+      - SQL_USER=${SQL_USER:-pos_user}
+      - SQL_PASSWORD=${SQL_PASSWORD:-pos_user_db_password_example}
+    command: >
+      bash -c "python manage.py collectstatic --noinput &&
+               python manage.py migrate &&
+               gunicorn pos_system.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - ./app/backend:/code
+      - backend_static:/code/staticfiles
+      - backend_media:/code/media
     ports:
-      - "8000:8000"
-    command: bash -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
-    env_file:
-      - ./app/backend/.env
-    environment:
-      - DATABASE=mysql
-      - SQL_ENGINE=django.db.backends.mysql
-      - SQL_HOST=db
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
     networks:
       - gemelos_net
 
-
+  # ----------------------------------------------------------------------------
+  # 3. FRONTEND: React SPA servido por Nginx (Reverse Proxy /api/, /admin/, /media/)
+  # ----------------------------------------------------------------------------
   frontend:
     build:
       context: ./app/frontend
       dockerfile: Dockerfile
     container_name: gemelos_frontend
     restart: unless-stopped
-    volumes:
-      - ./app/frontend:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
+    env_file:
+      - .env
     environment:
-      - REACT_APP_API_BASE_URL=http://localhost:8000
-      - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-/api}
+    volumes:
+      - backend_media:/media:ro
+      - backend_static:/staticfiles:ro
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
     networks:
       - gemelos_net
 
-  db:
-    image: mysql:8.0
-    container_name: gemelos_db
-    restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
-    volumes:
-      - mysql_data:/var/lib/mysql
-    env_file:
-      - ./app/backend/.env
-    environment:
-      - MYSQL_ROOT_PASSWORD=${SQL_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${SQL_DATABASE:-mydb}
-      - MYSQL_USER=${SQL_USER:-myuser}
-      - MYSQL_PASSWORD=${SQL_PASSWORD:-db_password_placeholder}
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${SQL_ROOT_PASSWORD:-rootpassword}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - gemelos_net
-
 volumes:
   mysql_data:
+    driver: local
+  backend_static:
+    driver: local
+  backend_media:
+    driver: local
 
 networks:
   gemelos_net:

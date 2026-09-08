@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axiosInstance from "../axiosConfig";
+import { useToast } from "../context/ToastContext";
 import { 
   BookOpen, 
   Search, 
@@ -15,7 +16,6 @@ import {
   AlertCircle 
 } from "lucide-react";
 
-
 export default function Kardex() {
   const [movements, setMovements] = useState([]);
   const [products, setProducts] = useState([]);
@@ -26,6 +26,9 @@ export default function Kardex() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState({ type: "", text: "" });
+
+  const { showToast } = useToast();
+
 
   const [form, setForm] = useState({
     product: "",
@@ -114,7 +117,7 @@ export default function Kardex() {
         notes: form.notes,
       });
 
-      setFeedback({ type: "success", text: "Movimiento de stock registrado correctamente." });
+      showToast("Movimiento de stock registrado correctamente en Kardex.", "success");
       setShowModal(false);
       setForm({ product: "", movement_type: "RESTOCK", quantity: "", notes: "" });
       fetchData();
@@ -122,10 +125,12 @@ export default function Kardex() {
       console.error("Error al registrar movimiento:", err);
       const msg = err.response?.data?.error || "Error al registrar el movimiento en Kardex.";
       setFeedback({ type: "error", text: msg });
+      showToast(msg, "error");
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const renderMovementBadge = (type) => {
     switch (type) {
