@@ -21,8 +21,11 @@ app/frontend/.cache/
 
 # Python & Django
 __pycache__/
+**/__pycache__/
 *.py[cod]
+**/*.py[cod]
 *$py.class
+**/*$py.class
 *.so
 .Python
 env/
@@ -69,19 +72,5 @@ Thumbs.db
 *.rar
 codigo_gemelos.txt
 Dockerfile.save
-app/frontend/Dockerfile.save
-app/backend/inventory/migrations/__pycache__/__init__.cpython-311.pyc
-app/backend/inventory/__pycache__/__init__.cpython-311.pyc
-app/backend/inventory/__pycache__/admin.cpython-311.pyc
-app/backend/pos_system/__pycache__/wsgi.cpython-311.pyc
-app/backend/inventory/__pycache__/apps.cpython-311.pyc
-app/backend/inventory/migrations/__pycache__/__init__.cpython-311.pyc
-app/backend/inventory/migrations/__pycache__/0001_initial.cpython-311.pyc
-app/backend/inventory/migrations/__pycache__/0002_product_image.cpython-311.pyc
-app/backend/inventory/migrations/__pycache__/0003_alter_product_stock.cpython-311.pyc
-app/backend/inventory/migrations/__pycache__/0004_alter_sale_total_price.cpython-311.pyc
-app/backend/inventory/migrations/__pycache__/0005_sale_stock_error.cpython-311.pyc
-app/backend/inventory/migrations/__pycache__/0006_remove_sale_product_remove_sale_quantity_and_more.cpython-311.pyc
-app/backend/pos_system/__pycache__/__init__.cpython-311.pyc
-app/backend/pos_system/__pycache__/settings.cpython-311.pyc
-app/backend/pos_system/__pycache__/wsgi.cpython-311.pyc
+*.save
+
