@@ -138,16 +138,27 @@ WSGI_APPLICATION = 'pos_system.wsgi.application'
 #}
 
 
-DATABASES = {
-    "default": {
-        "ENGINE": os.environ.get("SQL_ENGINE", "django.db.backends.sqlite3"),
-        "NAME": os.environ.get("SQL_DATABASE", os.path.join(BASE_DIR, 'db.sqlite3')),
-        "USER": os.environ.get("SQL_USER", "myuser"),
-        "PASSWORD": os.environ.get("SQL_PASSWORD", "db_password_placeholder"),
-        "HOST": os.environ.get("SQL_HOST", "localhost"),
-        "PORT": os.environ.get("SQL_PORT", "3306"),
+DB_TYPE = os.environ.get("DATABASE", "sqlite").lower()
+
+if DB_TYPE == "mysql" or "mysql" in os.environ.get("SQL_ENGINE", ""):
+    DATABASES = {
+        "default": {
+            "ENGINE": os.environ.get("SQL_ENGINE", "django.db.backends.mysql"),
+            "NAME": os.environ.get("SQL_DATABASE", "mydb"),
+            "USER": os.environ.get("SQL_USER", "myuser"),
+            "PASSWORD": os.environ.get("SQL_PASSWORD", "db_password_placeholder"),
+            "HOST": os.environ.get("SQL_HOST", "db"),
+            "PORT": os.environ.get("SQL_PORT", "3306"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        }
+    }
+
 
 
 # Password validation

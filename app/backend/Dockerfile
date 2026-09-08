@@ -1,23 +1,20 @@
-FROM python:3.11.2
+FROM python:3.11-slim
 WORKDIR /code
 
-# Instalar dependencias del sistema
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 RUN apt-get update && apt-get install -y \
-    libportaudio2 \
-    libportaudiocpp0 \
-    portaudio19-dev \
+    gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
 RUN pip install --upgrade pip
-
 COPY requirements.txt .
-
-RUN pip uninstall -y \ 
-    mysqlclient
-
 RUN pip install -r requirements.txt
 
-#COPY . .
+COPY . .
 
 EXPOSE 8000
+
