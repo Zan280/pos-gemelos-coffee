@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Product, Sale, SaleItem
+from .models import Product, Sale, SaleItem, StockMovement
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,17 +21,50 @@ SaleItemSerealizer = SaleItemSerializer
 
 class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
+    cashier_username = serializers.CharField(source='user.username', read_only=True, default="Cajero")
 
     class Meta:
         model = Sale
-        fields = ['id', 'created_at', 'total_price', 'items']
+        fields = ['id', 'created_at', 'total_price', 'payment_method', 'user', 'cashier_username', 'items']
         read_only_fields = ['created_at', 'total_price']
 
+class StockMovementSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True, default="Sistema")
+    movement_type_display = serializers.CharField(source='get_movement_type_display', read_only=True)
+
+    class Meta:
+        model = StockMovement
+        fields = [
+            'id',
+            'product',
+            'product_name',
+            'product_price',
+            'movement_type',
+            'movement_type_display',
+            'quantity',
+            'previous_stock',
+            'resulting_stock',
+            'user',
+            'username',
+            'notes',
+            'created_at',
+        ]
+        read_only_fields = ['created_at', 'previous_stock', 'resulting_stock']
+
 class UserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password']
+        fields = ['id', 'username', 'email', 'password', 'is_staff', 'is_superuser', 'role']
         extra_kwargs = {'password': {'write_only': True}}
+
+    def get_role(self, obj):
+        if obj.is_staff or obj.is_superuser or obj.username.lower() == 'maguirre':
+            return 'admin'
+        return 'cashier'
 
     def create(self, validated_data):
         user = User.objects.create_user(
@@ -40,5 +73,6 @@ class UserSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+
 
 

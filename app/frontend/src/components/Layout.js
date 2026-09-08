@@ -5,6 +5,8 @@ import {
   LayoutDashboard, 
   ShoppingBag, 
   Package, 
+  BookOpen,
+  TrendingUp,
   LogOut, 
   Menu, 
   X, 
@@ -12,7 +14,8 @@ import {
   Clock, 
   ChevronRight
 } from "lucide-react";
-import { logout, getUser } from "../auth";
+
+import { logout, getUser, isAdmin } from "../auth";
 import { useCart } from "../context/CartContext";
 
 export default function Layout({ children }) {
@@ -22,6 +25,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const user = getUser() || { username: "Cajero" };
+  const userIsAdmin = isAdmin();
 
   // Reloj en tiempo real
   useEffect(() => {
@@ -39,12 +43,13 @@ export default function Layout({ children }) {
     navigate("/login");
   };
 
-  const navItems = [
+  const allNavItems = [
     {
       label: "Inicio / Dashboard",
       path: "/home",
       icon: LayoutDashboard,
       description: "Resumen y accesos rápidos",
+      adminOnly: false,
     },
     {
       label: "Terminal POS",
@@ -52,14 +57,33 @@ export default function Layout({ children }) {
       icon: ShoppingBag,
       description: "Punto de venta y caja",
       badge: totalItems > 0 ? `${totalItems}` : null,
+      adminOnly: false,
     },
     {
       label: "Inventario",
       path: "/inventory",
       icon: Package,
       description: "Gestión de productos y stock",
+      adminOnly: false,
+    },
+    {
+      label: "Kardex de Stock",
+      path: "/kardex",
+      icon: BookOpen,
+      description: "Trazabilidad y movimientos",
+      adminOnly: true,
+    },
+    {
+      label: "Reportes & Ventas",
+      path: "/reports",
+      icon: TrendingUp,
+      description: "Métricas e historial financiero",
+      adminOnly: true,
     },
   ];
+
+  const navItems = allNavItems.filter((item) => !item.adminOnly || userIsAdmin);
+
 
   const formattedDate = currentTime.toLocaleDateString("es-ES", {
     weekday: "short",
@@ -180,19 +204,31 @@ export default function Layout({ children }) {
         <div className="p-4 border-t border-amber-900/30 bg-[#120A04]">
           <div className="flex items-center justify-between rounded-2xl bg-amber-950/40 p-3 border border-amber-900/30">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-amber-800/60 flex items-center justify-center text-amber-200 font-bold text-sm border border-amber-700/40">
+              <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm border ${
+                userIsAdmin
+                  ? "bg-amber-600 text-amber-50 border-amber-400/50 shadow-md shadow-amber-950/40"
+                  : "bg-amber-800/60 text-amber-200 border-amber-700/40"
+              }`}>
                 <User className="w-5 h-5" />
               </div>
               <div className="overflow-hidden">
                 <p className="text-xs font-semibold text-white truncate">
                   {user.username}
                 </p>
-                <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Operador Activo
-                </p>
+                {userIsAdmin ? (
+                  <p className="text-[10px] text-amber-400 flex items-center gap-1 font-bold uppercase tracking-wider">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Administrador
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    Cajero / Caja
+                  </p>
+                )}
               </div>
             </div>
+
 
             <button
               onClick={handleLogout}

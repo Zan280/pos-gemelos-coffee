@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
@@ -13,8 +14,16 @@ class Product(models.Model):
         return f"{self.name} (Stock: {self.stock})"
 
 class Sale(models.Model):
+    PAYMENT_CHOICES = [
+        ('cash', 'Efectivo'),
+        ('card', 'Tarjeta'),
+        ('transfer', 'Transferencia'),
+    ]
+
     created_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="sales")
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='cash')
 
     class Meta:
         ordering = ['-created_at']
@@ -48,5 +57,29 @@ class SaleItem(models.Model):
 
     def __str__(self):
         return f'{self.quantity} x {self.product.name} (Venta #{self.sale.id})'
+
+class StockMovement(models.Model):
+    MOVEMENT_TYPES = [
+        ('SALE', 'Venta'),
+        ('RESTOCK', 'Reabastecimiento'),
+        ('ADJUSTMENT', 'Ajuste Manual'),
+        ('INITIAL', 'Inventario Inicial'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="stock_movements")
+    movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPES, default='SALE')
+    quantity = models.IntegerField(help_text="Cantidad agregada (+) o deducida (-)")
+    previous_stock = models.PositiveIntegerField()
+    resulting_stock = models.PositiveIntegerField()
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="stock_movements")
+    notes = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.get_movement_type_display()} - {self.product.name} ({self.quantity})'
+
 
 

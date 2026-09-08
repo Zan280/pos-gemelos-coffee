@@ -99,3 +99,18 @@ export function getUser() {
     return null;
   }
 }
+
+/**
+ * Verifica si el usuario autenticado tiene rol de Administrador
+ */
+export function isAdmin() {
+  const user = getUser();
+  if (!user) return false;
+  return (
+    user.role === "admin" ||
+    user.is_staff === true ||
+    user.is_superuser === true ||
+    (user.username && user.username.toLowerCase() === "maguirre")
+  );
+}
+

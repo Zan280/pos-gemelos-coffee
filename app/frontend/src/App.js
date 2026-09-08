@@ -5,9 +5,12 @@ import { CartProvider } from "./context/CartContext";
 import Layout from "./components/Layout";
 import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
+import Kardex from './pages/Kardex';
+import Reports from './pages/Reports';
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import PrivateRoute from "./PrivateRoute";
+import AdminRoute from "./components/AdminRoute";
 import { logout } from "./auth";
 
 function App() {
@@ -80,6 +83,28 @@ function App() {
             } 
           />
 
+          {/* Rutas exclusivas para Administradores (RBAC) */}
+          <Route 
+            path="/kardex" 
+            element={
+              <AdminRoute>
+                <Layout>
+                  <Kardex />
+                </Layout>
+              </AdminRoute>
+            } 
+          />
+          <Route 
+            path="/reports" 
+            element={
+              <AdminRoute>
+                <Layout>
+                  <Reports />
+                </Layout>
+              </AdminRoute>
+            } 
+          />
+
           {/* Redirecciones de compatibilidad */}
           <Route path="/checkout" element={<Navigate to="/sales" replace />} />
           <Route path="/success" element={<Navigate to="/sales" replace />} />
@@ -93,3 +118,4 @@ function App() {
 }
 
 export default App;
+
