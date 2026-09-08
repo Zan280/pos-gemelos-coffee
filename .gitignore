@@ -1,0 +1,72 @@
+# ==========================================
+# Gemelos Coffee POS - .gitignore
+# ==========================================
+
+# Dependencias Node.js
+node_modules/
+app/frontend/node_modules/
+app/backend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Compilación y Build Frontend
+build/
+app/frontend/build/
+dist/
+app/frontend/dist/
+.cache/
+app/frontend/.cache/
+
+# Python & Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.env/
+*.egg-info/
+.installed.cfg
+*.egg
+db.sqlite3
+*.sqlite3
+
+# Archivos de medios y datos locales
+media/
+app/backend/media/
+data/
+data/*
+!data/.gitkeep
+
+# Variables de entorno sensibles (conservar .env.example)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+app/backend/.env
+app/frontend/.env
+!.env.example
+!app/backend/.env.example
+!app/frontend/.env.example
+
+# IDEs y Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Archivos de respaldo temporales
+*.zip
+*.tar.gz
+*.rar
+codigo_gemelos.txt
+Dockerfile.save
+app/frontend/Dockerfile.save

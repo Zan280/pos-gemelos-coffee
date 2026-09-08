@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import './App.css';
 import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
@@ -10,35 +10,6 @@ import Success from "./pages/Success";
 import PrivateRoute from "./PrivateRoute";
 import { logout } from "./auth";
 
-function LogoutButton() {
-  const location = useLocation();
-
-  // Ocultar el botón si el usuario está en /login
-  if (location.pathname === "/login") return null;
-
-  return (
-    <button
-      onClick={() => {
-        logout();
-        window.location.href = "/login";
-      }}
-      style={{
-        position: "absolute",
-        top: 10,
-        right: 10,
-        padding: "10px 15px",
-        backgroundColor: "#d9534f",
-        color: "white",
-        border: "none",
-        cursor: "pointer",
-        borderRadius: "5px"
-      }}
-    >
-      Cerrar Sesión
-    </button>
-  );
-}
-
 function App() {
   // Cierre de sesión automático tras 30 minutos de inactividad
   useEffect(() => {
@@ -48,30 +19,33 @@ function App() {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         logout();
-        window.location.href = "/login";
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
       }, 30 * 60 * 1000); // 30 minutos
     };
 
     window.addEventListener("mousemove", resetTimer);
     window.addEventListener("keydown", resetTimer);
+    window.addEventListener("click", resetTimer);
     resetTimer();
 
     return () => {
       window.removeEventListener("mousemove", resetTimer);
       window.removeEventListener("keydown", resetTimer);
+      window.removeEventListener("click", resetTimer);
       clearTimeout(timeout);
     };
   }, []);
 
-
   return (
     <Router>
-      <LogoutButton /> {/* Botón de logout, oculto en /login */}
-
-
       <Routes>
         {/* Ruta pública para login */}
         <Route path="/login" element={<Login />} />
+
+        {/* Redirección raíz a Home (protegido) */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
 
         {/* Rutas privadas protegidas */}
         <Route 
@@ -114,6 +88,9 @@ function App() {
             </PrivateRoute>
           } 
         />
+
+        {/* Ruta comodín para capturar 404 y redirigir a Home */}
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </Router>
   );

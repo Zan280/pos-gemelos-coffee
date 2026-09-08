@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getValidAccessToken, logout } from './auth';
 
 // Obtiene la URL base desde las variables de entorno
 const rawBaseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
@@ -9,16 +10,31 @@ const axiosInstance = axios.create({
     baseURL: baseURL,
 });
 
-// Interceptar todas las solicitudes para agregar el token JWT en las cabeceras
+// Interceptor de peticiones: inyecta el token de acceso si es válido
 axiosInstance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('access_token');
+        const token = getValidAccessToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
     },
     (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Interceptor de respuestas: captura 401 y expulsa al login si la sesión caducó
+axiosInstance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            // Si el token es rechazado por el servidor
+            logout();
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
         return Promise.reject(error);
     }
 );
