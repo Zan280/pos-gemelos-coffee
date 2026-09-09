@@ -297,7 +297,7 @@ export default function Layout({ children }) {
         </header>
 
         {/* Vista dinámica / Página fluida 100% de ancho */}
-        <main className="flex-1 overflow-y-auto bg-[#FAF7F2] p-4 sm:p-6 lg:p-8 w-full flex flex-col">
+        <main className="flex-1 overflow-y-auto bg-[#FAF7F2] p-3 sm:p-6 lg:p-8 w-full flex flex-col">
           <div className="w-full min-h-full flex flex-col flex-1">
             {children}
           </div>

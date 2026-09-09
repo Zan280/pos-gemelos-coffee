@@ -31,6 +31,7 @@ export default function Sales() {
   const [successModalData, setSuccessModalData] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [mobileTab, setMobileTab] = useState("catalog"); // 'catalog' | 'cart'
 
   const { showToast } = useToast();
 
@@ -139,12 +140,49 @@ export default function Sales() {
 
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 h-full w-full font-sans animate-fade-in">
+    <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 h-full w-full font-sans animate-fade-in relative">
       
+      {/* ==================================================== */}
+      {/* SWITCHER TÁCTIL MÓVIL (< xl)                         */}
+      {/* ==================================================== */}
+      <div className="flex xl:hidden gap-2 bg-stone-200/80 p-1 rounded-2xl shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileTab("catalog")}
+          className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+            mobileTab === "catalog"
+              ? "bg-white text-amber-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <Coffee className="w-4 h-4" />
+          <span>Catálogo ({products.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("cart")}
+          className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+            mobileTab === "cart"
+              ? "bg-white text-amber-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          <span>Orden ({totalItems})</span>
+          {totalItems > 0 && (
+            <span className="bg-amber-600 text-white rounded-full px-1.5 py-0.5 text-[10px] font-extrabold leading-none shadow-xs">
+              {totalItems}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* ==================================================== */}
       {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS              */}
       {/* ==================================================== */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-stone-200/80 overflow-hidden">
+      <div className={`flex-1 flex-col min-w-0 bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-stone-200/80 overflow-hidden ${
+        mobileTab === "catalog" ? "flex" : "hidden xl:flex"
+      }`}>
         
         {/* Barra superior de herramientas y filtros */}
         <div className="flex flex-col sm:flex-row gap-3.5 items-stretch sm:items-center justify-between mb-5">
@@ -202,7 +240,7 @@ export default function Sales() {
         )}
 
         {/* Grid de Productos */}
-        <div className="flex-1 overflow-y-auto pr-1">
+        <div className={`flex-1 overflow-y-auto pr-1 ${totalItems > 0 ? "pb-24 xl:pb-0" : ""}`}>
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
               <RefreshCw className="w-8 h-8 animate-spin text-amber-600 mb-3" />
@@ -215,7 +253,7 @@ export default function Sales() {
               <p className="text-xs text-slate-400 mt-1">Prueba cambiando el término de búsqueda o filtro</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
               {filteredProducts.map((product) => {
                 const isOutOfStock = product.stock <= 0;
                 const isLowStock = product.stock > 0 && product.stock <= 5;
@@ -225,7 +263,7 @@ export default function Sales() {
                   <div
                     key={product.id}
                     onClick={() => !isOutOfStock && addToCart(product, 1)}
-                    className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 transition-all duration-200 select-none ${
+                    className={`group relative flex flex-col justify-between rounded-2xl border p-3 sm:p-3.5 transition-all duration-200 select-none ${
                       isOutOfStock
                         ? "bg-stone-50 border-stone-200/60 opacity-60 cursor-not-allowed"
                         : "bg-white hover:bg-amber-50/40 border-stone-200/80 hover:border-amber-400 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.98]"
@@ -239,7 +277,7 @@ export default function Sales() {
                     )}
 
                     {/* Imagen del producto */}
-                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-stone-100 mb-3 flex items-center justify-center">
+                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-stone-100 mb-2.5 sm:mb-3 flex items-center justify-center">
                       {product.image ? (
                         <img
                           src={getImageUrl(product.image)}
@@ -296,9 +334,58 @@ export default function Sales() {
       </div>
 
       {/* ==================================================== */}
+      {/* BARRA FLOTANTE INFERIOR MÓVIL (< xl)                */}
+      {/* ==================================================== */}
+      {mobileTab === "catalog" && totalItems > 0 && (
+        <div className="fixed bottom-4 inset-x-4 z-30 xl:hidden animate-fade-in">
+          <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#1A0F07] via-[#2D180B] to-[#452712] p-3 pl-4 rounded-2xl shadow-2xl border border-amber-900/40 text-white backdrop-blur-md">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative shrink-0">
+                <div className="h-10 w-10 rounded-xl bg-amber-600 flex items-center justify-center text-white shadow-md">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-black text-amber-950 shadow">
+                  {totalItems}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
+                  Total Orden
+                </p>
+                <p className="text-base font-black text-white truncate">
+                  C$ {totalPrice.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMobileTab("cart")}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-xs font-bold text-white shadow-md hover:from-emerald-500 hover:to-teal-600 active:scale-95 transition-all flex items-center gap-1.5 shrink-0"
+            >
+              <span>Ver Orden</span>
+              <CheckCircle2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
       {/* PANEL DERECHO: CARRITO / TERMINAL DE VENTA           */}
       {/* ==================================================== */}
-      <div className="w-full xl:w-[400px] 2xl:w-[440px] shrink-0 flex flex-col bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-stone-200/80">
+      <div className={`w-full xl:w-[400px] 2xl:w-[440px] shrink-0 flex-col bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-stone-200/80 ${
+        mobileTab === "cart" ? "flex" : "hidden xl:flex"
+      }`}>
+
+        {/* Botón rápido para volver al catálogo en móvil */}
+        <button
+          type="button"
+          onClick={() => setMobileTab("catalog")}
+          className="xl:hidden w-full py-2.5 px-4 rounded-xl bg-stone-100 text-stone-700 font-bold text-xs hover:bg-stone-200 transition-colors flex items-center justify-center gap-2 mb-4"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Volver al Catálogo / Agregar más</span>
+        </button>
 
         {/* Cabecera del Carrito */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 mb-4">
@@ -326,7 +413,7 @@ export default function Sales() {
         </div>
 
         {/* Lista de Ítems en el Carrito */}
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-[220px]">
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-[200px]">
           {cartItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12 text-slate-400 text-center">
               <ShoppingBag className="w-12 h-12 text-slate-200 mb-2" />
@@ -334,6 +421,13 @@ export default function Sales() {
               <p className="text-[11px] text-slate-400 max-w-[200px] mt-0.5">
                 Haz clic en cualquier producto del catálogo para agregarlo al pedido
               </p>
+              <button
+                type="button"
+                onClick={() => setMobileTab("catalog")}
+                className="mt-4 px-4 py-2 rounded-xl bg-amber-600 text-white font-bold text-xs shadow hover:bg-amber-700 transition-colors"
+              >
+                Explorar Catálogo
+              </button>
             </div>
           ) : (
             cartItems.map((item) => {
