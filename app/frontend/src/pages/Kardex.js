@@ -13,7 +13,8 @@ import {
   Coffee, 
   X, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  Tag
 } from "lucide-react";
 
 export default function Kardex() {
@@ -29,11 +30,12 @@ export default function Kardex() {
 
   const { showToast } = useToast();
 
-
   const [form, setForm] = useState({
     product: "",
     movement_type: "RESTOCK",
     quantity: "",
+    unit_cost: "",
+    new_sale_price: "",
     notes: "",
   });
 
@@ -46,7 +48,9 @@ export default function Kardex() {
         axiosInstance.get("products/"),
       ]);
       setMovements(movementsRes.data);
-      setProducts(productsRes.data);
+      // Solo productos físicos de reventa tienen trazabilidad en Kardex
+      const physicalOnly = productsRes.data.filter((p) => (p.item_type || "PRODUCT") === "PRODUCT");
+      setProducts(physicalOnly);
     } catch (err) {
       console.error("Error al cargar datos de Kardex:", err);
       setFeedback({ type: "error", text: "No se pudieron cargar los registros del Kardex." });
@@ -64,6 +68,7 @@ export default function Kardex() {
     return movements.filter((m) => {
       const matchesSearch = 
         m.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.category && m.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (m.notes && m.notes.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (m.username && m.username.toLowerCase().includes(searchTerm.toLowerCase()));
       
@@ -81,8 +86,8 @@ export default function Kardex() {
     const restockMovements = movements.filter((m) => m.movement_type === "RESTOCK");
     const adjustmentMovements = movements.filter((m) => m.movement_type === "ADJUSTMENT");
 
-    const totalSoldUnits = Math.abs(salesMovements.reduce((acc, m) => acc + m.quantity, 0));
-    const totalAddedUnits = restockMovements.reduce((acc, m) => acc + m.quantity, 0);
+    const totalSoldUnits = Math.abs(salesMovements.reduce((acc, m) => acc + (parseInt(m.quantity, 10) || 0), 0));
+    const totalAddedUnits = restockMovements.reduce((acc, m) => acc + (parseInt(m.quantity, 10) || 0), 0);
 
     return {
       totalMovements,
@@ -94,10 +99,25 @@ export default function Kardex() {
     };
   }, [movements]);
 
+  // Manejar cambio de producto en formulario
+  const handleFormProductChange = (productId) => {
+    const selected = products.find((p) => String(p.id) === String(productId));
+    if (selected) {
+      setForm((prev) => ({
+        ...prev,
+        product: String(productId),
+        unit_cost: selected.cost_price || "0.00",
+        new_sale_price: selected.price || "",
+      }));
+    } else {
+      setForm((prev) => ({ ...prev, product: String(productId) }));
+    }
+  };
+
   const handleSubmitAdjustment = async (e) => {
     e.preventDefault();
     if (!form.product) {
-      setFeedback({ type: "error", text: "Debes seleccionar un producto." });
+      setFeedback({ type: "error", text: "Debes seleccionar un producto físico." });
       return;
     }
     const qty = parseInt(form.quantity, 10);
@@ -110,16 +130,20 @@ export default function Kardex() {
     setFeedback({ type: "", text: "" });
 
     try {
-      await axiosInstance.post("kardex/", {
-        product: form.product,
+      const payload = {
+        product: parseInt(form.product, 10),
         movement_type: form.movement_type,
         quantity: qty,
+        unit_cost: form.unit_cost ? parseFloat(form.unit_cost) : undefined,
+        new_sale_price: form.new_sale_price ? parseFloat(form.new_sale_price) : undefined,
         notes: form.notes,
-      });
+      };
+
+      await axiosInstance.post("kardex/", payload);
 
       showToast("Movimiento de stock registrado correctamente en Kardex.", "success");
       setShowModal(false);
-      setForm({ product: "", movement_type: "RESTOCK", quantity: "", notes: "" });
+      setForm({ product: "", movement_type: "RESTOCK", quantity: "", unit_cost: "", new_sale_price: "", notes: "" });
       fetchData();
     } catch (err) {
       console.error("Error al registrar movimiento:", err);
@@ -130,7 +154,6 @@ export default function Kardex() {
       setSubmitting(false);
     }
   };
-
 
   const renderMovementBadge = (type) => {
     switch (type) {
@@ -145,7 +168,7 @@ export default function Kardex() {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
             <ArrowUpRight className="w-3 h-3 text-emerald-600" />
-            Reabastecimiento
+            Entrada / Compra
           </span>
         );
       case "ADJUSTMENT":
@@ -181,22 +204,33 @@ export default function Kardex() {
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 text-xs font-bold mb-2">
             <BookOpen className="w-3.5 h-3.5 text-amber-700" />
-            <span>Módulo de Auditoría & Trazabilidad</span>
+            <span>Auditoría, CPP & Trazabilidad de Inventario Físico</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#2A1708]">
-            Kardex de Inventario
+            Kardex de Inventario Físico
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Registro cronológico de entradas, salidas y ajustes de stock en tiempo real
+            Registro cronológico valorizado bajo la metodología de Costo Promedio Ponderado (CPP)
           </p>
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            const firstP = products[0];
+            setForm({
+              product: firstP ? String(firstP.id) : "",
+              movement_type: "RESTOCK",
+              quantity: "",
+              unit_cost: firstP ? firstP.cost_price || "0.00" : "",
+              new_sale_price: firstP ? firstP.price || "" : "",
+              notes: "",
+            });
+            setShowModal(true);
+          }}
           className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-amber-900/20 hover:from-amber-800 hover:to-amber-950 transition-all active:scale-[0.99]"
         >
           <Plus className="w-4 h-4" />
-          <span>Registrar Entrada / Ajuste</span>
+          <span>Registrar Movimiento / Entrada</span>
         </button>
       </div>
 
@@ -297,7 +331,7 @@ export default function Kardex() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por producto, detalle o usuario..."
+              placeholder="Buscar por producto, categoría o responsable..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all"
@@ -311,10 +345,10 @@ export default function Kardex() {
               onChange={(e) => setSelectedProduct(e.target.value)}
               className="rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 px-3.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-600"
             >
-              <option value="all">Todos los productos</option>
+              <option value="all">Todos los productos físicos</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {p.name} ({p.category || "General"})
                 </option>
               ))}
             </select>
@@ -327,7 +361,7 @@ export default function Kardex() {
             >
               <option value="all">Todos los tipos</option>
               <option value="SALE">Ventas POS</option>
-              <option value="RESTOCK">Reabastecimiento</option>
+              <option value="RESTOCK">Entradas / Compra</option>
               <option value="ADJUSTMENT">Ajustes Manuales</option>
               <option value="INITIAL">Stock Inicial</option>
             </select>
@@ -342,37 +376,38 @@ export default function Kardex() {
           </div>
         </div>
 
-        {/* Contenedor de la Tabla */}
+        {/* Contenedor de la Tabla con metodología CPP */}
         <div className="overflow-x-auto rounded-2xl border border-stone-200/80">
           <table className="w-full text-left text-sm text-slate-700">
             <thead className="bg-[#FAF6F0] text-[11px] font-bold uppercase tracking-wider text-[#5F3B1A] border-b border-stone-200">
               <tr>
                 <th className="py-3.5 px-4">Fecha & Hora</th>
-                <th className="py-3.5 px-4">Producto</th>
-                <th className="py-3.5 px-4">Tipo</th>
-                <th className="py-3.5 px-4 text-center">Cantidad</th>
-                <th className="py-3.5 px-4 text-center">Stock Previo</th>
-                <th className="py-3.5 px-4 text-center">Stock Final</th>
-                <th className="py-3.5 px-4">Responsable</th>
-                <th className="py-3.5 px-4">Detalle / Nota</th>
+                <th className="py-3.5 px-4">Producto & Departamento</th>
+                <th className="py-3.5 px-4">Tipo Movimiento</th>
+                <th className="py-3.5 px-4 text-center">Cantidad (+/-)</th>
+                <th className="py-3.5 px-4 text-right">Costo Unit. (CPP)</th>
+                <th className="py-3.5 px-4 text-right">Total Movimiento</th>
+                <th className="py-3.5 px-4 text-center">Stock Resultante</th>
+                <th className="py-3.5 px-4 text-right">Saldo Monetario</th>
+                <th className="py-3.5 px-4">Responsable & Detalle</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                  <td colSpan="9" className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RefreshCw className="w-6 h-6 animate-spin text-amber-700" />
-                      <span className="text-xs font-medium">Cargando movimientos de Kardex...</span>
+                      <span className="text-xs font-medium">Cargando registros valorizados de Kardex...</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredMovements.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                  <td colSpan="9" className="py-12 text-center text-slate-400">
                     <Coffee className="w-10 h-10 mx-auto text-stone-300 mb-2" />
                     <p className="text-sm font-semibold text-slate-600">No hay movimientos registrados</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Los registros de ventas y entradas aparecerán aquí automáticamente.</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Las ventas de productos físicos y compras aparecerán aquí automáticamente.</p>
                   </td>
                 </tr>
               ) : (
@@ -389,42 +424,81 @@ export default function Kardex() {
                     minute: "2-digit",
                   });
 
+                  const unitCostVal = parseFloat(item.unit_cost || 0);
+                  const totalCostVal = parseFloat(item.total_cost || 0);
+                  const resultingBalanceVal = parseFloat(item.resulting_balance || 0);
+
                   return (
-                    <tr key={item.id} className="hover:bg-amber-50/30 transition-colors">
+                    <tr key={item.id} className="hover:bg-amber-50/30 transition-colors text-xs">
+                      {/* Fecha & Hora */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="text-xs font-bold text-slate-800">{formattedDate}</div>
-                        <div className="text-[11px] text-slate-400">{formattedTime}</div>
+                        <div className="font-bold text-slate-800">{formattedDate}</div>
+                        <div className="text-[10px] text-slate-400">{formattedTime}</div>
                       </td>
-                      <td className="py-3 px-4 font-bold text-slate-900">
-                        {item.product_name}
+
+                      {/* Producto & Categoría */}
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-slate-900 leading-tight">
+                          {item.product_name}
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Tag className="w-3 h-3 text-stone-400" />
+                          <span className="text-[10px] text-stone-500 font-medium">
+                            {item.category || "General"}
+                          </span>
+                        </div>
                       </td>
+
+                      {/* Tipo */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         {renderMovementBadge(item.movement_type)}
                       </td>
+
+                      {/* Cantidad (+/-) */}
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`text-xs font-black px-2.5 py-1 rounded-lg ${
+                          className={`font-black px-2.5 py-1 rounded-lg ${
                             isPositive
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-red-50 text-red-700"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                              : "bg-red-50 text-red-700 border border-red-200/60"
                           }`}
                         >
                           {isPositive ? `+${item.quantity}` : item.quantity}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center font-semibold text-slate-500">
-                        {item.previous_stock}
+
+                      {/* Costo Unitario Aplicado */}
+                      <td className="py-3 px-4 text-right font-semibold text-slate-700">
+                        C$ {unitCostVal.toFixed(2)}
                       </td>
-                      <td className="py-3 px-4 text-center font-black text-slate-800">
-                        {item.resulting_stock}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="text-xs font-semibold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                          {item.username}
+
+                      {/* Monto Total Movimiento */}
+                      <td className="py-3 px-4 text-right font-black">
+                        <span className={totalCostVal >= 0 ? "text-emerald-700" : "text-red-600"}>
+                          {totalCostVal >= 0 ? `+C$ ${totalCostVal.toFixed(2)}` : `-C$ ${Math.abs(totalCostVal).toFixed(2)}`}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-xs text-slate-600 max-w-xs truncate">
-                        {item.notes || "—"}
+
+                      {/* Stock Resultante */}
+                      <td className="py-3 px-4 text-center font-extrabold text-slate-900">
+                        {item.resulting_stock} uds
+                      </td>
+
+                      {/* Saldo Monetario */}
+                      <td className="py-3 px-4 text-right font-extrabold text-slate-900">
+                        C$ {resultingBalanceVal.toFixed(2)}
+                      </td>
+
+                      {/* Responsable & Notas */}
+                      <td className="py-3 px-4 text-xs">
+                        <div className="font-semibold text-amber-950 flex items-center gap-1">
+                          <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded text-[10px]">
+                            {item.username}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate max-w-xs mt-0.5">
+                          {item.notes || "—"}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -436,92 +510,130 @@ export default function Kardex() {
       </div>
 
       {/* ==================================================== */}
-      {/* MODAL DE ENTRADA / AJUSTE MANUAL                     */}
+      {/* MODAL DE ENTRADA / AJUSTE MANUAL (ESPACIOSO)         */}
       {/* ==================================================== */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-stone-200 space-y-6">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-stone-200 my-auto max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-4 flex-shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Registrar Movimiento de Kardex
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-amber-800" />
+                  <span>Registrar Movimiento en Kardex</span>
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Ingreso de mercancía o ajuste administrativo de stock
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Reabastecimiento con costo de compra o ajuste administrativo
                 </p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100"
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmitAdjustment} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Producto *
-                </label>
-                <select
-                  value={form.product}
-                  onChange={(e) => setForm({ ...form, product: e.target.value })}
-                  required
-                  className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-3 px-4 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
-                >
-                  <option value="">Selecciona un producto...</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (Stock actual: {p.stock})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleSubmitAdjustment} className="flex-1 flex flex-col min-h-0 pt-4">
+              <div className="flex-1 overflow-y-auto pr-2 space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Tipo de Operación *
+                    Producto Físico *
                   </label>
                   <select
-                    value={form.movement_type}
-                    onChange={(e) => setForm({ ...form, movement_type: e.target.value })}
-                    className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-3 px-4 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                    value={form.product}
+                    onChange={(e) => handleFormProductChange(e.target.value)}
+                    required
+                    className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-3 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
                   >
-                    <option value="RESTOCK">Reabastecimiento (+)</option>
-                    <option value="ADJUSTMENT">Ajuste de Stock (±)</option>
+                    <option value="">Selecciona un producto...</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (Stock actual: {p.stock} | CPP: C$ {parseFloat(p.cost_price).toFixed(2)})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Tipo de Operación *
+                    </label>
+                    <select
+                      value={form.movement_type}
+                      onChange={(e) => setForm({ ...form, movement_type: e.target.value })}
+                      className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                    >
+                      <option value="RESTOCK">Reabastecimiento / Compra (+)</option>
+                      <option value="ADJUSTMENT">Ajuste de Stock (±)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Cantidad {form.movement_type === "RESTOCK" ? "(Positiva)" : "(Ajuste)"} *
+                    </label>
+                    <input
+                      type="number"
+                      value={form.quantity}
+                      onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                      placeholder={form.movement_type === "RESTOCK" ? "Ej. 24" : "Ej. 5 ó -3"}
+                      required
+                      className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                    />
+                  </div>
+                </div>
+
+                {form.movement_type === "RESTOCK" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Costo Unitario de Compra (C$) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.unit_cost}
+                        onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">Costo de factura para recalcular CPP</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Nuevo Precio de Venta (C$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.new_sale_price}
+                        onChange={(e) => setForm({ ...form, new_sale_price: e.target.value })}
+                        placeholder="Dejar vacío para conservar actual"
+                        className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Cantidad {form.movement_type === "RESTOCK" ? "(Positiva)" : "(Ajuste)"} *
+                    Motivo / Observaciones / N° Factura
                   </label>
                   <input
-                    type="number"
-                    value={form.quantity}
-                    onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                    placeholder={form.movement_type === "RESTOCK" ? "Ej. 24" : "Ej. 5 ó -3"}
-                    required
-                    className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-3 px-4 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                    type="text"
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    placeholder="Ej. Factura proveedor #4092 o merma por caducidad"
+                    className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Motivo / Observaciones
-                </label>
-                <input
-                  type="text"
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Ej. Factura proveedor #4092 o merma por caducidad"
-                  className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-3 px-4 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100 flex-shrink-0 mt-3">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -532,9 +644,16 @@ export default function Kardex() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-2xl bg-gradient-to-r from-amber-700 to-amber-900 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-amber-950/20 hover:from-amber-800 hover:to-amber-950 disabled:opacity-50 transition-all"
+                  className="rounded-2xl bg-gradient-to-r from-amber-700 to-amber-900 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-amber-950/20 hover:from-amber-800 hover:to-amber-950 disabled:opacity-50 transition-all flex items-center gap-2"
                 >
-                  {submitting ? "Guardando..." : "Confirmar Movimiento"}
+                  {submitting ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Confirmar Movimiento</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -545,3 +664,4 @@ export default function Kardex() {
     </div>
   );
 }
+

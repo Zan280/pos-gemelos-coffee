@@ -19,6 +19,7 @@ import { useCart } from "../context/CartContext";
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const { totalItems } = useCart();
   const navigate = useNavigate();
@@ -83,7 +84,6 @@ export default function Layout({ children }) {
 
   const navItems = allNavItems.filter((item) => !item.adminOnly || userIsAdmin);
 
-
   const formattedDate = currentTime.toLocaleDateString("es-ES", {
     weekday: "short",
     day: "numeric",
@@ -110,15 +110,21 @@ export default function Layout({ children }) {
       {/* SIDEBAR                                    */}
       {/* ========================================== */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col bg-[#1A0F07] text-amber-50/90 shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col bg-[#1A0F07] text-amber-50/90 shadow-2xl transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${isCollapsed ? "lg:w-20 w-72" : "lg:w-72 w-72"}`}
       >
-        {/* Cabecera del Sidebar */}
-        <div className="flex h-20 items-center justify-between px-6 border-b border-amber-900/30">
-          <div className="flex items-center gap-3.5">
+        {/* Cabecera del Sidebar con Logotipo Interactivo para Colapsar/Expandir */}
+        <div className={`flex h-20 items-center border-b border-amber-900/30 transition-all ${
+          isCollapsed ? "justify-center px-2" : "justify-between px-6"
+        }`}>
+          <div 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="flex items-center gap-3.5 cursor-pointer group select-none transition-transform active:scale-95"
+            title={isCollapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
+          >
             <div className="relative">
-              <div className="h-11 w-11 rounded-2xl bg-amber-950/80 border border-amber-500/20 p-1 flex items-center justify-center shadow-lg shadow-amber-950/40">
+              <div className="h-11 w-11 rounded-2xl bg-amber-950/80 border border-amber-500/20 p-1 flex items-center justify-center shadow-lg shadow-amber-950/40 group-hover:scale-105 group-hover:border-amber-400/50 transition-all">
                 <img
                   src={`${process.env.PUBLIC_URL || ""}/logo.png`}
                   alt="Gemelos Coffee"
@@ -127,14 +133,17 @@ export default function Layout({ children }) {
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-[#1A0F07]" />
             </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
-                Gemelos Coffee
-              </h1>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/80">
-                Sistema POS
-              </p>
-            </div>
+            
+            {!isCollapsed && (
+              <div className="transition-opacity duration-200">
+                <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-1.5 leading-tight group-hover:text-amber-200 transition-colors">
+                  Gemelos Coffee
+                </h1>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/80">
+                  Sistema POS
+                </p>
+              </div>
+            )}
           </div>
 
           <button
@@ -146,10 +155,12 @@ export default function Layout({ children }) {
         </div>
 
         {/* Navegación Principal */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5">
-          <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-amber-400/50 mb-3">
-            Módulos del Sistema
-          </p>
+        <div className={`flex-1 overflow-y-auto py-6 space-y-1.5 ${isCollapsed ? "px-2" : "px-4"}`}>
+          {!isCollapsed && (
+            <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-amber-400/50 mb-3">
+              Módulos del Sistema
+            </p>
+          )}
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -159,15 +170,18 @@ export default function Layout({ children }) {
               <NavLink
                 key={item.path}
                 to={item.path}
+                title={isCollapsed ? item.label : undefined}
                 className={({ isActive: active }) =>
-                  `group relative flex items-center justify-between rounded-2xl px-4 py-3.5 text-sm font-medium transition-all ${
+                  `group relative flex items-center ${
+                    isCollapsed ? "justify-center px-2 py-3.5" : "justify-between px-4 py-3.5"
+                  } rounded-2xl text-sm font-medium transition-all ${
                     active
                       ? "bg-gradient-to-r from-amber-800/80 to-amber-900/90 text-white shadow-lg shadow-amber-950/40 border border-amber-600/30"
                       : "text-amber-100/70 hover:bg-amber-900/20 hover:text-white"
                   }`
                 }
               >
-                <div className="flex items-center gap-3.5">
+                <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3.5"}`}>
                   <div
                     className={`rounded-xl p-2 transition-colors ${
                       isActive
@@ -177,26 +191,31 @@ export default function Layout({ children }) {
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-                  <div>
-                    <span className="block font-semibold leading-tight text-[13px]">
-                      {item.label}
-                    </span>
-                    <span className="block text-[11px] text-amber-400/60 leading-tight">
-                      {item.description}
-                    </span>
-                  </div>
+                  
+                  {!isCollapsed && (
+                    <div>
+                      <span className="block font-semibold leading-tight text-[13px]">
+                        {item.label}
+                      </span>
+                      <span className="block text-[11px] text-amber-400/60 leading-tight">
+                        {item.description}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {item.badge ? (
-                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold text-amber-950 shadow-sm animate-pulse">
-                    {item.badge}
-                  </span>
-                ) : (
-                  <ChevronRight
-                    className={`w-4 h-4 opacity-0 transition-opacity group-hover:opacity-100 ${
-                      isActive ? "opacity-100 text-amber-300" : "text-amber-500/50"
-                    }`}
-                  />
+                {!isCollapsed && (
+                  item.badge ? (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold text-amber-950 shadow-sm animate-pulse">
+                      {item.badge}
+                    </span>
+                  ) : (
+                    <ChevronRight
+                      className={`w-4 h-4 opacity-0 transition-opacity group-hover:opacity-100 ${
+                        isActive ? "opacity-100 text-amber-300" : "text-amber-500/50"
+                      }`}
+                    />
+                  )
                 )}
               </NavLink>
             );
@@ -204,42 +223,48 @@ export default function Layout({ children }) {
         </div>
 
         {/* Tarjeta de Usuario / Sesión en el Footer */}
-        <div className="p-4 border-t border-amber-900/30 bg-[#120A04]">
-          <div className="flex items-center justify-between rounded-2xl bg-amber-950/40 p-3 border border-amber-900/30">
-            <div className="flex items-center gap-3">
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm border ${
+        <div className="p-3 border-t border-amber-900/30 bg-[#120A04]">
+          <div className={`flex items-center ${
+            isCollapsed ? "justify-center p-2" : "justify-between p-3"
+          } rounded-2xl bg-amber-950/40 border border-amber-900/30`}>
+            <div className="flex items-center gap-3 min-w-0" title={user.username}>
+              <div className={`h-9 w-9 shrink-0 rounded-xl flex items-center justify-center font-bold text-sm border ${
                 userIsAdmin
                   ? "bg-amber-600 text-amber-50 border-amber-400/50 shadow-md shadow-amber-950/40"
                   : "bg-amber-800/60 text-amber-200 border-amber-700/40"
               }`}>
                 <User className="w-5 h-5" />
               </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-semibold text-white truncate">
-                  {user.username}
-                </p>
-                {userIsAdmin ? (
-                  <p className="text-[10px] text-amber-400 flex items-center gap-1 font-bold uppercase tracking-wider">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    Administrador
+              
+              {!isCollapsed && (
+                <div className="overflow-hidden">
+                  <p className="text-xs font-semibold text-white truncate">
+                    {user.username}
                   </p>
-                ) : (
-                  <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    Cajero / Caja
-                  </p>
-                )}
-              </div>
+                  {userIsAdmin ? (
+                    <p className="text-[10px] text-amber-400 flex items-center gap-1 font-bold uppercase tracking-wider">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      Administrador
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      Cajero / Caja
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-
-            <button
-              onClick={handleLogout}
-              title="Cerrar Sesión"
-              className="rounded-xl p-2 text-amber-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            {!isCollapsed && (
+              <button
+                onClick={handleLogout}
+                title="Cerrar Sesión"
+                className="rounded-xl p-2 text-amber-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </aside>

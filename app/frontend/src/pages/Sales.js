@@ -85,8 +85,9 @@ export default function Sales() {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
 
-      if (selectedFilter === "available") return product.stock > 0;
-      if (selectedFilter === "low_stock") return product.stock > 0 && product.stock <= 5;
+      const isService = product.item_type === "SERVICE";
+      if (selectedFilter === "available") return isService || product.stock > 0;
+      if (selectedFilter === "low_stock") return !isService && product.stock > 0 && product.stock <= 5;
       return true;
     });
   }, [products, searchTerm, selectedFilter]);
@@ -254,8 +255,9 @@ export default function Sales() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
               {filteredProducts.map((product) => {
-                const isOutOfStock = product.stock <= 0;
-                const isLowStock = product.stock > 0 && product.stock <= 5;
+                const isService = product.item_type === "SERVICE";
+                const isOutOfStock = !isService && product.stock <= 0;
+                const isLowStock = !isService && product.stock > 0 && product.stock <= 5;
                 const inCart = cartItems.find((item) => item.id === product.id);
 
                 return (
@@ -287,9 +289,13 @@ export default function Sales() {
                         <Coffee className="w-10 h-10 text-amber-800/30" />
                       )}
 
-                      {/* Badge de Stock */}
+                      {/* Badge de Stock / Tipo */}
                       <div className="absolute bottom-2 left-2">
-                        {isOutOfStock ? (
+                        {isService ? (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-800/90 text-amber-100 text-[10px] font-bold shadow-sm backdrop-blur-xs">
+                            Preparado
+                          </span>
+                        ) : isOutOfStock ? (
                           <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold shadow-sm">
                             Agotado
                           </span>
@@ -535,8 +541,8 @@ export default function Sales() {
       {/* ==================================================== */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-amber-50 p-1.5 border border-amber-200/80 flex items-center justify-center shadow-sm">
                   <img
@@ -562,7 +568,7 @@ export default function Sales() {
               </button>
             </div>
 
-            <div className="py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
               <div className="text-center py-2">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Monto Total del Pedido
@@ -616,7 +622,7 @@ export default function Sales() {
               </div>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-3 border-t border-slate-100 flex-shrink-0 mt-2">
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
@@ -649,9 +655,9 @@ export default function Sales() {
       {/* ==================================================== */}
       {successModalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto">
             {/* Header del Ticket */}
-            <div className="text-center pb-4 border-b border-dashed border-slate-300">
+            <div className="text-center pb-4 border-b border-dashed border-slate-300 flex-shrink-0">
               <div className="flex justify-center mb-2">
                 <div className="h-14 w-14 rounded-2xl bg-amber-50/90 p-1.5 border border-amber-200/80 flex items-center justify-center shadow-sm">
                   <img
@@ -672,7 +678,7 @@ export default function Sales() {
             </div>
 
             {/* Lista de productos en Ticket */}
-            <div className="py-4 space-y-2 border-b border-dashed border-slate-300 max-h-48 overflow-y-auto text-xs">
+            <div className="py-4 space-y-2 border-b border-dashed border-slate-300 flex-1 overflow-y-auto text-xs pr-1">
               {successModalData.items.map((item) => (
                 <div key={item.id} className="flex justify-between items-center text-slate-800">
                   <div className="truncate pr-2">
@@ -687,7 +693,7 @@ export default function Sales() {
             </div>
 
             {/* Total e Info de Pago */}
-            <div className="py-4 space-y-1.5 text-xs">
+            <div className="py-3 space-y-1.5 text-xs flex-shrink-0">
               <div className="flex justify-between text-slate-500">
                 <span>Forma de Pago:</span>
                 <span className="font-medium text-slate-800">{successModalData.paymentMethod}</span>
@@ -699,7 +705,7 @@ export default function Sales() {
             </div>
 
             {/* Botones de acción */}
-            <div className="flex gap-2.5 pt-2">
+            <div className="flex gap-2.5 pt-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => window.print()}

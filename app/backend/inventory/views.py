@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum, Count, Avg, F, Q
@@ -31,12 +32,18 @@ class ProductViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         product = serializer.save()
         if product.item_type == 'PRODUCT' and product.stock > 0:
+            unit_cost = product.cost_price or Decimal('0.00')
+            total_cost = Decimal(str(product.stock)) * unit_cost
             StockMovement.objects.create(
                 product=product,
                 movement_type='INITIAL',
                 quantity=product.stock,
+                unit_cost=unit_cost,
+                total_cost=total_cost,
                 previous_stock=0,
                 resulting_stock=product.stock,
+                previous_balance=Decimal('0.00'),
+                resulting_balance=total_cost,
                 user=self.request.user if self.request.user.is_authenticated else None,
                 notes="Inventario inicial al crear producto"
             )
@@ -45,13 +52,41 @@ class SaleViewSet(viewsets.ModelViewSet):
     """
     ViewSet para consultar y registrar ventas.
     Implementa transacciones atómicas y bloqueo pesimista de stock con select_for_update().
-    - PRODUCT: Valida y descuenta stock físico, y registra movimiento en Kardex.
-    - SERVICE: Permite venta sin descontar stock físico del catálogo general.
+    - PRODUCT: Valida y descuenta stock físico, y registra movimiento en Kardex con CPP vigente.
+    - SERVICE: Permite venta sin descontar stock físico ni registrar movimiento en Kardex.
     - Guarda el cost_price histórico congelado en cada SaleItem.
     """
     queryset = Sale.objects.all().prefetch_related('items__product', 'user').order_by('-created_at')
     serializer_class = SaleSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.query_params.get('search')
+        date = self.request.query_params.get('date')
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        payment_method = self.request.query_params.get('payment_method')
+
+        if search:
+            queryset = queryset.filter(
+                Q(id__icontains=search) |
+                Q(user__username__icontains=search) |
+                Q(items__product__name__icontains=search)
+            ).distinct()
+
+        if date:
+            queryset = queryset.filter(created_at__date=date)
+        else:
+            if start_date:
+                queryset = queryset.filter(created_at__date__gte=start_date)
+            if end_date:
+                queryset = queryset.filter(created_at__date__lte=end_date)
+
+        if payment_method and payment_method != 'all':
+            queryset = queryset.filter(payment_method=payment_method)
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -72,7 +107,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                 user=current_user,
                 payment_method=payment_method
             )
-            calculated_total = 0
+            calculated_total = Decimal('0.00')
 
             # 2. Procesar cada ítem
             for item in items_data:
@@ -113,12 +148,19 @@ class SaleViewSet(viewsets.ModelViewSet):
                         )
 
                     previous_stock = product.stock
+                    applied_cost = product.cost_price or Decimal('0.00')
+                    previous_balance = Decimal(str(previous_stock)) * applied_cost
+
                     # Descontar existencias y persistir producto
                     product.stock -= quantity
                     product.save(update_fields=['stock'])
 
-                # Calcular subtotal del ítem
-                item_subtotal = product.price * quantity
+                    resulting_stock = product.stock
+                    resulting_balance = Decimal(str(resulting_stock)) * applied_cost
+                    total_salida_cost = -(Decimal(str(quantity)) * applied_cost)
+
+                # Calcular subtotal de venta del ítem
+                item_subtotal = product.price * Decimal(str(quantity))
                 calculated_total += item_subtotal
 
                 # Crear SaleItem congelando el cost_price unitario al momento de la venta
@@ -127,17 +169,21 @@ class SaleViewSet(viewsets.ModelViewSet):
                     product=product,
                     quantity=quantity,
                     price=item_subtotal,
-                    cost_price=product.cost_price or 0.00,
+                    cost_price=product.cost_price or Decimal('0.00'),
                 )
 
-                # 3. Registrar Kardex automático únicamente para productos físicos
+                # 3. Registrar Kardex automático únicamente para productos físicos a valor de costo CPP
                 if is_physical_product:
                     StockMovement.objects.create(
                         product=product,
                         movement_type='SALE',
                         quantity=-quantity,
+                        unit_cost=applied_cost,
+                        total_cost=total_salida_cost,
                         previous_stock=previous_stock,
-                        resulting_stock=product.stock,
+                        resulting_stock=resulting_stock,
+                        previous_balance=previous_balance,
+                        resulting_balance=resulting_balance,
                         user=current_user,
                         notes=f"Venta POS #{sale.id}"
                     )
@@ -171,21 +217,31 @@ class StockMovementViewSet(viewsets.ModelViewSet):
         movement_type = self.request.query_params.get('type')
         date_from = self.request.query_params.get('from')
         date_to = self.request.query_params.get('to')
+        category = self.request.query_params.get('category')
+        item_type = self.request.query_params.get('item_type')
+
+        # Por defecto solo productos de inventario físico
+        if item_type:
+            queryset = queryset.filter(product__item_type=item_type)
+        else:
+            queryset = queryset.filter(product__item_type='PRODUCT')
 
         if product_id:
             queryset = queryset.filter(product_id=product_id)
+        if category and category != 'all':
+            queryset = queryset.filter(product__category=category)
         if movement_type and movement_type != 'all':
             queryset = queryset.filter(movement_type=movement_type)
         if date_from:
-            queryset = queryset.filter(created_at__gte=date_from)
+            queryset = queryset.filter(created_at__date__gte=date_from)
         if date_to:
-            queryset = queryset.filter(created_at__lte=date_to)
+            queryset = queryset.filter(created_at__date__lte=date_to)
 
         return queryset
 
     def create(self, request, *args, **kwargs):
         """
-        Permite al Administrador registrar reabastecimientos o ajustes manuales.
+        Permite al Administrador registrar Entradas de Stock (Reabastecimiento con cálculo CPP) o Ajustes manuales.
         """
         product_id = request.data.get('product')
         movement_type = request.data.get('movement_type', 'RESTOCK')
@@ -196,6 +252,9 @@ class StockMovementViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return Response({"error": "Cantidad numérica inválida."}, status=status.HTTP_400_BAD_REQUEST)
 
+        if quantity <= 0 and movement_type == 'RESTOCK':
+            return Response({"error": "La cantidad a ingresar debe ser mayor a cero."}, status=status.HTTP_400_BAD_REQUEST)
+
         if quantity == 0:
             return Response({"error": "La cantidad debe ser distinta de cero."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -205,29 +264,90 @@ class StockMovementViewSet(viewsets.ModelViewSet):
             except Product.DoesNotExist:
                 return Response({"error": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-            previous_stock = product.stock
+            if product.item_type != 'PRODUCT':
+                return Response({"error": "Solo se pueden registrar movimientos de stock para ítems tipo Producto."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if movement_type == 'RESTOCK' and quantity > 0:
+            previous_stock = product.stock
+            previous_cost = product.cost_price or Decimal('0.00')
+            previous_balance = Decimal(str(previous_stock)) * previous_cost
+
+            if movement_type == 'RESTOCK':
+                # Parsear costo unitario de compra
+                try:
+                    unit_cost = Decimal(str(request.data.get('unit_cost', previous_cost)))
+                    if unit_cost < Decimal('0.00'):
+                        raise ValueError()
+                except Exception:
+                    return Response({"error": "Costo unitario de compra inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+                new_sale_price_raw = request.data.get('new_sale_price')
+                movement_total = Decimal(str(quantity)) * unit_cost
                 resulting_stock = previous_stock + quantity
+                resulting_balance = previous_balance + movement_total
+
+                # Fórmula de Costo Promedio Ponderado (CPP)
+                if resulting_stock > 0:
+                    new_cpp = (resulting_balance / Decimal(str(resulting_stock))).quantize(Decimal('0.01'))
+                else:
+                    new_cpp = unit_cost
+
+                # Actualizar Producto
+                product.stock = resulting_stock
+                product.cost_price = new_cpp
+
+                update_fields = ['stock', 'cost_price']
+                if new_sale_price_raw is not None and str(new_sale_price_raw).strip() != '':
+                    try:
+                        new_sale_price = Decimal(str(new_sale_price_raw))
+                        if new_sale_price >= Decimal('0.00'):
+                            product.price = new_sale_price
+                            update_fields.append('price')
+                    except Exception:
+                        pass
+
+                product.save(update_fields=update_fields)
+
+                movement = StockMovement.objects.create(
+                    product=product,
+                    movement_type='RESTOCK',
+                    quantity=quantity,
+                    unit_cost=unit_cost,
+                    total_cost=movement_total,
+                    previous_stock=previous_stock,
+                    resulting_stock=resulting_stock,
+                    previous_balance=previous_balance,
+                    resulting_balance=resulting_balance,
+                    user=request.user if request.user.is_authenticated else None,
+                    notes=notes or f"Entrada de mercadería (Compra @ ${unit_cost:.2f})"
+                )
+
             elif movement_type == 'ADJUSTMENT':
+                applied_cost = previous_cost
                 resulting_stock = previous_stock + quantity
                 if resulting_stock < 0:
                     return Response({"error": "El stock resultante no puede ser menor a cero."}, status=status.HTTP_400_BAD_REQUEST)
+
+                resulting_balance = Decimal(str(resulting_stock)) * applied_cost
+                movement_total = Decimal(str(quantity)) * applied_cost
+
+                product.stock = resulting_stock
+                product.save(update_fields=['stock'])
+
+                movement = StockMovement.objects.create(
+                    product=product,
+                    movement_type='ADJUSTMENT',
+                    quantity=quantity,
+                    unit_cost=applied_cost,
+                    total_cost=movement_total,
+                    previous_stock=previous_stock,
+                    resulting_stock=resulting_stock,
+                    previous_balance=previous_balance,
+                    resulting_balance=resulting_balance,
+                    user=request.user if request.user.is_authenticated else None,
+                    notes=notes or "Ajuste manual de inventario"
+                )
             else:
-                resulting_stock = max(0, previous_stock + quantity)
-
-            product.stock = resulting_stock
-            product.save(update_fields=['stock'])
-
-            movement = StockMovement.objects.create(
-                product=product,
-                movement_type=movement_type,
-                quantity=quantity if movement_type == 'RESTOCK' else quantity,
-                previous_stock=previous_stock,
-                resulting_stock=resulting_stock,
-                user=request.user,
-                notes=notes or f"{movement_type} manual por admin"
-            )
+                return Response({"error": "Tipo de movimiento no soportado."}, status=status.HTTP_400_BAD_REQUEST)
 
             serializer = self.get_serializer(movement)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -319,7 +439,6 @@ class ReportsStatsView(APIView):
             for pm in payment_methods_query
         ]
 
-
         return Response({
             "kpis": {
                 "total_revenue": float(total_revenue),
@@ -385,3 +504,4 @@ class LoginView(APIView):
                 {"detail": "Credenciales inválidas. Verifica tu usuario y contraseña."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+

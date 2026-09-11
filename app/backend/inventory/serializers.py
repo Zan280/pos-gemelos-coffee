@@ -8,7 +8,18 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'item_type', 'item_type_display', 'cost_price', 'price', 'profit_margin', 'stock', 'image']
+        fields = [
+            'id', 
+            'name', 
+            'category', 
+            'item_type', 
+            'item_type_display', 
+            'cost_price', 
+            'price', 
+            'profit_margin', 
+            'stock', 
+            'image'
+        ]
 
 class SaleItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
@@ -36,6 +47,7 @@ class SaleSerializer(serializers.ModelSerializer):
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
+    category = serializers.CharField(source='product.category', read_only=True)
     item_type = serializers.CharField(source='product.item_type', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True, default="Sistema")
     movement_type_display = serializers.CharField(source='get_movement_type_display', read_only=True)
@@ -46,19 +58,24 @@ class StockMovementSerializer(serializers.ModelSerializer):
             'id',
             'product',
             'product_name',
+            'category',
             'product_price',
             'item_type',
             'movement_type',
             'movement_type_display',
             'quantity',
+            'unit_cost',
+            'total_cost',
             'previous_stock',
             'resulting_stock',
+            'previous_balance',
+            'resulting_balance',
             'user',
             'username',
             'notes',
             'created_at',
         ]
-        read_only_fields = ['created_at', 'previous_stock', 'resulting_stock']
+        read_only_fields = ['created_at', 'previous_stock', 'resulting_stock', 'previous_balance', 'resulting_balance', 'unit_cost', 'total_cost']
 
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
