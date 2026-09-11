@@ -14,7 +14,6 @@ import {
   Coffee, 
   RefreshCw, 
   Sparkles,
-  Receipt,
   X,
   CreditCard,
   Banknote
@@ -538,10 +537,23 @@ export default function Sales() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-amber-700" />
-                Confirmar Cobro
-              </h3>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-amber-50 p-1.5 border border-amber-200/80 flex items-center justify-center shadow-sm">
+                  <img
+                    src={`${process.env.PUBLIC_URL || ""}/logo.png`}
+                    alt="Gemelos Coffee"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 leading-tight flex items-center gap-1.5">
+                    Confirmar Cobro
+                  </h3>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                    Gemelos Coffee POS
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowConfirmModal(false)}
                 className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100"
@@ -640,10 +652,20 @@ export default function Sales() {
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
             {/* Header del Ticket */}
             <div className="text-center pb-4 border-b border-dashed border-slate-300">
-              <div className="mx-auto h-12 w-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mb-2">
-                <CheckCircle2 className="w-7 h-7" />
+              <div className="flex justify-center mb-2">
+                <div className="h-14 w-14 rounded-2xl bg-amber-50/90 p-1.5 border border-amber-200/80 flex items-center justify-center shadow-sm">
+                  <img
+                    src={`${process.env.PUBLIC_URL || ""}/logo.png`}
+                    alt="Gemelos Coffee Logo"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
               </div>
-              <h3 className="text-lg font-extrabold text-[#2A1708]">Gemelos Coffee</h3>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold mb-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>¡Venta Exitosa!</span>
+              </div>
+              <h3 className="text-lg font-extrabold text-[#2A1708] tracking-tight">Gemelos Coffee</h3>
               <p className="text-[11px] text-slate-500 font-medium">Ticket de Venta #{successModalData.saleId}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">{successModalData.date}</p>
               <p className="text-[10px] text-slate-400">Atendido por: {successModalData.cashier}</p>

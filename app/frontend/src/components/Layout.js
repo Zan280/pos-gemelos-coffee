@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { 
-  Coffee, 
   LayoutDashboard, 
   ShoppingBag, 
   Package, 
@@ -119,8 +118,12 @@ export default function Layout({ children }) {
         <div className="flex h-20 items-center justify-between px-6 border-b border-amber-900/30">
           <div className="flex items-center gap-3.5">
             <div className="relative">
-              <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-[#5F3B1A] to-amber-600 flex items-center justify-center shadow-lg shadow-amber-950/40 text-amber-100">
-                <Coffee className="w-6 h-6" />
+              <div className="h-11 w-11 rounded-2xl bg-amber-950/80 border border-amber-500/20 p-1 flex items-center justify-center shadow-lg shadow-amber-950/40">
+                <img
+                  src={`${process.env.PUBLIC_URL || ""}/logo.png`}
+                  alt="Gemelos Coffee"
+                  className="h-full w-full object-contain"
+                />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-[#1A0F07]" />
             </div>
@@ -255,6 +258,18 @@ export default function Layout({ children }) {
             >
               <Menu className="w-6 h-6" />
             </button>
+
+            {/* Logo en versión móvil */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <div className="h-9 w-9 rounded-xl bg-amber-50 p-1 border border-amber-200/80 flex items-center justify-center shadow-sm">
+                <img
+                  src={`${process.env.PUBLIC_URL || ""}/logo.png`}
+                  alt="Gemelos Coffee"
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <span className="font-bold text-sm text-[#2A1708]">Gemelos Coffee</span>
+            </div>
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-medium">
               <span className="relative flex h-2 w-2">

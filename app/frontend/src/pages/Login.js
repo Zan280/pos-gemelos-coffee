@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login, isAuthenticated } from "../auth";
 import { useToast } from "../context/ToastContext";
-import { Coffee, User, Lock, Eye, EyeOff, AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { User, Lock, Eye, EyeOff, AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 const Login = () => {
   const { showToast } = useToast();
@@ -76,10 +76,14 @@ const Login = () => {
           {/* Encabezado e Identidad de Marca */}
           <div className="flex flex-col items-center text-center mb-8">
             <div className="relative mb-4">
-              <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-[#5F3B1A] via-[#7E532D] to-amber-600 flex items-center justify-center shadow-lg shadow-amber-900/25 text-white transform hover:scale-105 transition-transform">
-                <Coffee className="w-8 h-8 text-amber-100" />
+              <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-3xl bg-gradient-to-br from-amber-50 to-amber-100/80 p-2.5 shadow-xl shadow-amber-950/15 border border-amber-200/80 flex items-center justify-center transform hover:scale-105 transition-all duration-300">
+                <img
+                  src={`${process.env.PUBLIC_URL || ""}/logo.png`}
+                  alt="Gemelos Coffee Logo"
+                  className="h-full w-full object-contain filter drop-shadow-sm"
+                />
               </div>
-              <div className="absolute -bottom-1 -right-1 bg-amber-400 text-amber-950 p-1 rounded-full shadow-sm">
+              <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white p-1 rounded-full shadow-md">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
             </div>
