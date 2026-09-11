@@ -2,8 +2,15 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Product(models.Model):
+    ITEM_TYPE_CHOICES = [
+        ('PRODUCT', 'Producto de Reventa'),
+        ('SERVICE', 'Servicio / Preparado'),
+    ]
+
     name = models.CharField(max_length=100)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    item_type = models.CharField(max_length=10, choices=ITEM_TYPE_CHOICES, default='PRODUCT')
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Costo de adquisición o costo base")
+    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Precio de venta al público")
     stock = models.PositiveIntegerField(default=0)
     image = models.ImageField(upload_to='product_images/', null=True, blank=True)
 
@@ -11,7 +18,15 @@ class Product(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.name} (Stock: {self.stock})"
+        type_str = "Servicio" if self.item_type == 'SERVICE' else f"Stock: {self.stock}"
+        return f"{self.name} ({type_str})"
+
+    @property
+    def profit_margin(self):
+        """
+        Calcula el margen de ganancia unitario bruto (Precio de venta - Costo de adquisición)
+        """
+        return (self.price or 0) - (self.cost_price or 0)
 
 class Sale(models.Model):
     PAYMENT_CHOICES = [
@@ -45,15 +60,29 @@ class SaleItem(models.Model):
     sale = models.ForeignKey(Sale, related_name="items", on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    price = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Costo unitario congelado al momento de la venta")
+    price = models.DecimalField(max_digits=10, decimal_places=2, editable=False, help_text="Subtotal de venta (unitario * cantidad)")
 
     def save(self, *args, **kwargs):
         """
-        Calcula el subtotal (precio unitario * cantidad) antes de persistir
+        Calcula el subtotal (precio unitario * cantidad) y congela el costo unitario antes de persistir
         """
-        if self.product and (self.price is None or self.price == 0):
-            self.price = self.product.price * self.quantity
+        if self.product:
+            if self.cost_price is None or (self.cost_price == 0 and self.product.cost_price > 0):
+                self.cost_price = self.product.cost_price or 0.00
+            if self.price is None or self.price == 0:
+                self.price = self.product.price * self.quantity
         super().save(*args, **kwargs)
+
+    @property
+    def total_cost(self):
+        """Costo total de la línea de venta (cost_price * quantity)"""
+        return (self.cost_price or 0) * self.quantity
+
+    @property
+    def profit(self):
+        """Utilidad bruta de la línea de venta (price - total_cost)"""
+        return (self.price or 0) - self.total_cost
 
     def __str__(self):
         return f'{self.quantity} x {self.product.name} (Venta #{self.sale.id})'

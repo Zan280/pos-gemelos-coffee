@@ -30,7 +30,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         product = serializer.save()
-        if product.stock > 0:
+        if product.item_type == 'PRODUCT' and product.stock > 0:
             StockMovement.objects.create(
                 product=product,
                 movement_type='INITIAL',
@@ -45,7 +45,9 @@ class SaleViewSet(viewsets.ModelViewSet):
     """
     ViewSet para consultar y registrar ventas.
     Implementa transacciones atómicas y bloqueo pesimista de stock con select_for_update().
-    Registra automáticamente el movimiento en el Kardex (StockMovement).
+    - PRODUCT: Valida y descuenta stock físico, y registra movimiento en Kardex.
+    - SERVICE: Permite venta sin descontar stock físico del catálogo general.
+    - Guarda el cost_price histórico congelado en cada SaleItem.
     """
     queryset = Sale.objects.all().prefetch_related('items__product', 'user').order_by('-created_at')
     serializer_class = SaleSerializer
@@ -72,7 +74,7 @@ class SaleViewSet(viewsets.ModelViewSet):
             )
             calculated_total = 0
 
-            # 2. Procesar cada producto con bloqueo de fila (select_for_update)
+            # 2. Procesar cada ítem
             for item in items_data:
                 product_id = item.get("id")
                 try:
@@ -98,42 +100,47 @@ class SaleViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_404_NOT_FOUND,
                     )
 
-                # Validar existencia de stock
-                if product.stock < quantity:
-                    return Response(
-                        {
-                            "error": f"Stock insuficiente para '{product.name}'. Disponible: {product.stock}, Solicitado: {quantity}."
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                is_physical_product = (product.item_type == 'PRODUCT')
 
-                previous_stock = product.stock
-                # Descontar existencias y persistir producto
-                product.stock -= quantity
-                product.save(update_fields=['stock'])
+                if is_physical_product:
+                    # Validar existencia de stock para productos físicos de reventa
+                    if product.stock < quantity:
+                        return Response(
+                            {
+                                "error": f"Stock insuficiente para '{product.name}'. Disponible: {product.stock}, Solicitado: {quantity}."
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    previous_stock = product.stock
+                    # Descontar existencias y persistir producto
+                    product.stock -= quantity
+                    product.save(update_fields=['stock'])
 
                 # Calcular subtotal del ítem
                 item_subtotal = product.price * quantity
                 calculated_total += item_subtotal
 
-                # Crear SaleItem
+                # Crear SaleItem congelando el cost_price unitario al momento de la venta
                 SaleItem.objects.create(
                     sale=sale,
                     product=product,
                     quantity=quantity,
                     price=item_subtotal,
+                    cost_price=product.cost_price or 0.00,
                 )
 
-                # 3. Registrar Kardex automático (StockMovement)
-                StockMovement.objects.create(
-                    product=product,
-                    movement_type='SALE',
-                    quantity=-quantity,
-                    previous_stock=previous_stock,
-                    resulting_stock=product.stock,
-                    user=current_user,
-                    notes=f"Venta POS #{sale.id}"
-                )
+                # 3. Registrar Kardex automático únicamente para productos físicos
+                if is_physical_product:
+                    StockMovement.objects.create(
+                        product=product,
+                        movement_type='SALE',
+                        quantity=-quantity,
+                        previous_stock=previous_stock,
+                        resulting_stock=product.stock,
+                        user=current_user,
+                        notes=f"Venta POS #{sale.id}"
+                    )
 
             # Actualizar el precio total de la venta
             sale.total_price = calculated_total
@@ -253,8 +260,11 @@ class ReportsStatsView(APIView):
         month_revenue = month_sales.aggregate(total=Sum('total_price'))['total'] or 0
         month_count = month_sales.count()
 
-        # Margen / Ganancia estimada (ej. 60% margen operativo de cafetería)
-        estimated_profit = float(total_revenue) * 0.60
+        # Cálculo de Costos y Utilidad Real
+        all_sale_items = SaleItem.objects.all()
+        total_cost = sum(((item.cost_price or 0) * item.quantity) for item in all_sale_items)
+        real_profit = float(total_revenue) - float(total_cost)
+        estimated_profit = real_profit if total_cost > 0 else (float(total_revenue) * 0.60)
 
         # 2. Top 5 Productos Más Vendidos
         top_items = (
