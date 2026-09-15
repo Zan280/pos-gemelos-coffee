@@ -142,6 +142,17 @@ export default function Reports() {
     }
   };
 
+  const formatPaymentMethod = (pm) => {
+    switch (pm) {
+      case "card":
+        return "Tarjeta";
+      case "transfer":
+        return "Transferencia";
+      default:
+        return "Efectivo";
+    }
+  };
+
   // ====================================================
   // EXPORTACIÓN A EXCEL (.xlsx)
   // ====================================================
@@ -161,7 +172,7 @@ export default function Reports() {
           "Fecha": d.toLocaleDateString("es-ES"),
           "Hora": d.toLocaleTimeString("es-ES"),
           "Cajero / Usuario": s.cashier_username || "Cajero",
-          "Método de Pago": s.payment_method?.toUpperCase() || "EFECTIVO",
+          "Método de Pago": formatPaymentMethod(s.payment_method).toUpperCase(),
           "Cantidad Ítems": s.items?.reduce((sum, it) => sum + it.quantity, 0) || 0,
           "Total Cobrado (C$)": parseFloat(s.total_price || 0),
           "Detalle de Productos": itemsSummary,
@@ -182,7 +193,7 @@ export default function Reports() {
             "Cantidad": it.quantity,
             "Precio Unitario (C$)": parseFloat(it.product_unit_price || (it.price / it.quantity) || 0),
             "Subtotal Línea (C$)": parseFloat(it.price || 0),
-            "Método de Pago": s.payment_method?.toUpperCase() || "EFECTIVO",
+            "Método de Pago": formatPaymentMethod(s.payment_method).toUpperCase(),
           });
         });
       });
@@ -261,7 +272,7 @@ export default function Reports() {
           `#${s.id}`,
           dateStr,
           s.cashier_username || "Cajero",
-          s.payment_method?.toUpperCase() || "EFECTIVO",
+          formatPaymentMethod(s.payment_method).toUpperCase(),
           itemsDetail,
           `C$ ${parseFloat(s.total_price || 0).toFixed(2)}`,
         ];
@@ -785,8 +796,8 @@ export default function Reports() {
             <div className="pt-4 border-t border-stone-100 space-y-2 flex-shrink-0">
               <div className="flex justify-between text-xs text-slate-500">
                 <span>Método de pago:</span>
-                <span className="font-semibold text-slate-800 capitalize">
-                  {selectedSaleDetail.payment_method || "Efectivo"}
+                <span className="font-semibold text-slate-800">
+                  {formatPaymentMethod(selectedSaleDetail.payment_method)}
                 </span>
               </div>
               <div className="flex justify-between text-xs text-slate-500">

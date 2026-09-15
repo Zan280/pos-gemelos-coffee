@@ -91,7 +91,9 @@ class SaleViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data
         items_data = data.get("items", [])
-        payment_method = data.get("payment_method", "cash")
+        raw_payment_method = str(data.get("payment_method", "cash")).lower().strip()
+        valid_methods = dict(Sale.PAYMENT_CHOICES).keys()
+        payment_method = raw_payment_method if raw_payment_method in valid_methods else "cash"
 
         if not items_data or not isinstance(items_data, list):
             return Response(

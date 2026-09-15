@@ -105,6 +105,7 @@ export default function Sales() {
         quantity: item.quantity,
       })),
       total: totalPrice,
+      payment_method: paymentMethod,
     };
 
     try {
@@ -118,7 +119,7 @@ export default function Sales() {
         cashier: user.username,
         items: [...cartItems],
         total: totalPrice,
-        paymentMethod: paymentMethod === "cash" ? "Efectivo" : "Tarjeta",
+        paymentMethod: paymentMethod === "cash" ? "Efectivo" : paymentMethod === "card" ? "Tarjeta" : "Transferencia",
       });
 
       // Limpiar carrito y refrescar inventario de productos
@@ -655,7 +656,18 @@ export default function Sales() {
       {/* ==================================================== */}
       {successModalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto relative">
+            {/* Botón de Cierre X */}
+            <button
+              type="button"
+              onClick={() => setSuccessModalData(null)}
+              className="absolute top-4 right-4 rounded-xl p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors z-10"
+              title="Cerrar ticket"
+              aria-label="Cerrar ticket"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
             {/* Header del Ticket */}
             <div className="text-center pb-4 border-b border-dashed border-slate-300 flex-shrink-0">
               <div className="flex justify-center mb-2">
