@@ -12,15 +12,20 @@ media/
 app/backend/media/
 app/backend/data/
 
-# 2. Secretos y variables de entorno sensibles
+# 2. Secretos, variables de entorno y archivos de ejemplo
 .env
 .env.*
 *.env
+.env-example
+.env.example
+*.env-example
+*.env.example
 app/backend/.env
+app/backend/.env.example
+app/backend/.env-example
 app/frontend/.env
-!.env.example
-!app/backend/.env.example
-!app/frontend/.env.example
+app/frontend/.env.example
+app/frontend/.env-example
 
 # 3. Dependencias (Node.js & Python)
 node_modules/
@@ -42,7 +47,7 @@ __pycache__/
 .installed.cfg
 *.egg
 
-# 4. Compilaciones, artefactos y logs
+# 4. Compilaciones, artefactos y archivos temporales
 build/
 app/frontend/build/
 dist/
@@ -58,6 +63,7 @@ yarn-error.log*
 *.tar.gz
 *.rar
 codigo_gemelos.txt
+**/codigo_gemelos.txt
 Dockerfile.save
 *.save
 
