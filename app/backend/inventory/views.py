@@ -209,7 +209,7 @@ class StockMovementViewSet(viewsets.ModelViewSet):
     ViewSet para trazabilidad y auditoría de inventario (Kardex).
     Acceso exclusivo para Administradores.
     """
-    queryset = StockMovement.objects.select_related('product', 'user').order_by('-created_at')
+    queryset = StockMovement.objects.select_related('product', 'user').order_by('created_at', 'id')
     serializer_class = StockMovementSerializer
     permission_classes = [IsAuthenticated, IsAdminOrSuperuser]
 

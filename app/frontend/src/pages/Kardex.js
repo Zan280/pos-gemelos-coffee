@@ -3,24 +3,29 @@ import axiosInstance from "../axiosConfig";
 import { useToast } from "../context/ToastContext";
 import ProductCombobox from "../components/ProductCombobox";
 import Pagination from "../components/Pagination";
-import { 
-  BookOpen, 
-  Search, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  RotateCcw, 
-  Sparkles, 
-  RefreshCw, 
-  Coffee, 
-  X, 
-  CheckCircle2, 
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import {
+  BookOpen,
+  Search,
+  ArrowUpRight,
+  ArrowDownLeft,
+  RotateCcw,
+  Sparkles,
+  RefreshCw,
+  Coffee,
+  X,
+  CheckCircle2,
   AlertCircle,
   Tag,
   SlidersHorizontal,
   MinusCircle,
   PlusCircle,
   AlertTriangle,
-  FileText
+  FileText,
+  FileSpreadsheet,
+  Calendar
 } from "lucide-react";
 
 const SUGGESTED_REASONS = [
@@ -36,9 +41,16 @@ export default function Kardex() {
   const [movements, setMovements] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
+  const [datePreset, setDatePreset] = useState("all"); // all, today, 7days, month, custom
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  // Modal de Ajustes
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState({ type: "", text: "" });
@@ -76,21 +88,59 @@ export default function Kardex() {
     fetchData();
   }, []);
 
-  // Filtrado reactivo de movimientos
+  // Filtrado reactivo de movimientos con Orden Cronológico Contable (Antiguos arriba, Recientes abajo)
   const filteredMovements = useMemo(() => {
-    return movements.filter((m) => {
-      const matchesSearch = 
-        m.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+
+    const list = movements.filter((m) => {
+      // 1. Búsqueda por texto (nombre, categoría, notas, responsable o ID)
+      const matchesSearch =
+        (m.product_name && m.product_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (m.category && m.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (m.notes && m.notes.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (m.username && m.username.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesProduct = selectedProduct === "all" || String(m.product) === String(selectedProduct);
-      const matchesType = selectedType === "all" || m.movement_type === selectedType;
+        (m.username && m.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        String(m.id).includes(searchTerm);
 
-      return matchesSearch && matchesProduct && matchesType;
+      if (!matchesSearch) return false;
+
+      // 2. Filtro por producto
+      const matchesProduct = selectedProduct === "all" || String(m.product) === String(selectedProduct);
+      if (!matchesProduct) return false;
+
+      // 3. Filtro por tipo de movimiento
+      const matchesType = selectedType === "all" || m.movement_type === selectedType;
+      if (!matchesType) return false;
+
+      // 4. Filtro por rango de fechas
+      const movementDateStr = m.created_at ? m.created_at.slice(0, 10) : "";
+      const movementDate = new Date(m.created_at);
+
+      if (datePreset === "today") {
+        if (movementDateStr !== todayStr) return false;
+      } else if (datePreset === "7days") {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+        if (movementDate < sevenDaysAgo) return false;
+      } else if (datePreset === "month") {
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        if (movementDate < firstDayOfMonth) return false;
+      } else if (datePreset === "custom") {
+        if (startDate && movementDateStr < startDate) return false;
+        if (endDate && movementDateStr > endDate) return false;
+      }
+
+      return true;
     });
-  }, [movements, searchTerm, selectedProduct, selectedType]);
+
+    // Orden Cronológico Contable: Más antiguos primero (arriba), más recientes al final (abajo)
+    return list.sort((a, b) => {
+      const dateDiff = new Date(a.created_at) - new Date(b.created_at);
+      if (dateDiff !== 0) return dateDiff;
+      return a.id - b.id;
+    });
+  }, [movements, searchTerm, selectedProduct, selectedType, datePreset, startDate, endDate]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
@@ -98,7 +148,7 @@ export default function Kardex() {
   // Resetear página al filtrar o buscar
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedProduct, selectedType]);
+  }, [searchTerm, selectedProduct, selectedType, datePreset, startDate, endDate]);
 
   // Movimientos de la página actual
   const paginatedMovements = useMemo(() => {
@@ -106,12 +156,12 @@ export default function Kardex() {
     return filteredMovements.slice(start, start + PAGE_SIZE);
   }, [filteredMovements, currentPage]);
 
-  // Métricas calculadas del Kardex
-  const metrics = useMemo(() => {
-    const totalMovements = movements.length;
-    const salesMovements = movements.filter((m) => m.movement_type === "SALE");
-    const restockMovements = movements.filter((m) => m.movement_type === "RESTOCK");
-    const adjustmentMovements = movements.filter((m) => m.movement_type === "ADJUSTMENT");
+  // Métricas calculadas para los movimientos filtrados
+  const filteredMetrics = useMemo(() => {
+    const totalMovements = filteredMovements.length;
+    const salesMovements = filteredMovements.filter((m) => m.movement_type === "SALE");
+    const restockMovements = filteredMovements.filter((m) => m.movement_type === "RESTOCK");
+    const adjustmentMovements = filteredMovements.filter((m) => m.movement_type === "ADJUSTMENT");
 
     const totalSoldUnits = Math.abs(salesMovements.reduce((acc, m) => acc + (parseInt(m.quantity, 10) || 0), 0));
     const totalAddedUnits = restockMovements.reduce((acc, m) => acc + (parseInt(m.quantity, 10) || 0), 0);
@@ -124,7 +174,239 @@ export default function Kardex() {
       totalAddedUnits,
       adjustmentsCount: adjustmentMovements.length,
     };
-  }, [movements]);
+  }, [filteredMovements]);
+
+  // Formato textual de tipos de movimiento para reportes
+  const formatMovementTypeLabel = (type, display) => {
+    if (display) return display;
+    switch (type) {
+      case "SALE":
+        return "Salida por Venta POS";
+      case "RESTOCK":
+        return "Entrada por Reabastecimiento / Compra";
+      case "ADJUSTMENT":
+        return "Ajuste Manual de Inventario";
+      case "INITIAL":
+        return "Inventario Inicial";
+      default:
+        return type;
+    }
+  };
+
+  // ====================================================
+  // EXPORTACIÓN A EXCEL (.xlsx)
+  // ====================================================
+  const handleExportExcel = () => {
+    if (filteredMovements.length === 0) {
+      showToast("No hay registros de Kardex en el período seleccionado para exportar.", "warning");
+      return;
+    }
+
+    try {
+      // Hoja 1: Detalle Contable de Movimientos
+      const kardexRows = filteredMovements.map((m) => {
+        const d = new Date(m.created_at);
+        const qty = parseInt(m.quantity, 10) || 0;
+        return {
+          "N° Mov.": `#${m.id}`,
+          "Fecha": d.toLocaleDateString("es-ES"),
+          "Hora": d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
+          "Código Prod.": `P-${m.product}`,
+          "Producto": m.product_name,
+          "Categoría": m.category || "General",
+          "Tipo de Movimiento": formatMovementTypeLabel(m.movement_type, m.movement_type_display),
+          "Entrada (+)": qty > 0 ? qty : 0,
+          "Salida (-)": qty < 0 ? Math.abs(qty) : 0,
+          "Cantidad Neta": qty,
+          "Costo Unitario CPP (C$)": parseFloat(m.unit_cost || 0),
+          "Monto Movimiento (C$)": parseFloat(m.total_cost || 0),
+          "Stock Resultante (uds)": parseInt(m.resulting_stock || 0, 10),
+          "Saldo Monetario (C$)": parseFloat(m.resulting_balance || 0),
+          "Responsable": m.username || "Sistema",
+          "Justificación / Notas": m.notes || "—",
+        };
+      });
+
+      // Hoja 2: Resumen por Producto dentro del filtro
+      const productMap = {};
+      filteredMovements.forEach((m) => {
+        const pId = m.product;
+        if (!productMap[pId]) {
+          productMap[pId] = {
+            "Código": `P-${pId}`,
+            "Producto": m.product_name,
+            "Categoría": m.category || "General",
+            "Total Entradas (uds)": 0,
+            "Total Salidas (uds)": 0,
+            "Ajustes Netos (uds)": 0,
+            "Último Stock Resultante (uds)": m.resulting_stock,
+            "Último Saldo CPP (C$)": parseFloat(m.resulting_balance || 0),
+          };
+        }
+        const qty = parseInt(m.quantity, 10) || 0;
+        if (m.movement_type === "RESTOCK" || (m.movement_type === "INITIAL" && qty > 0)) {
+          productMap[pId]["Total Entradas (uds)"] += qty;
+        } else if (m.movement_type === "SALE") {
+          productMap[pId]["Total Salidas (uds)"] += Math.abs(qty);
+        } else if (m.movement_type === "ADJUSTMENT") {
+          productMap[pId]["Ajustes Netos (uds)"] += qty;
+        }
+        // Al estar ordenado cronológicamente, la última iteración almacena el saldo final
+        productMap[pId]["Último Stock Resultante (uds)"] = m.resulting_stock;
+        productMap[pId]["Último Saldo CPP (C$)"] = parseFloat(m.resulting_balance || 0);
+      });
+
+      const summaryRows = Object.values(productMap);
+
+      const wb = XLSX.utils.book_new();
+      const wsKardex = XLSX.utils.json_to_sheet(kardexRows);
+      const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+
+      XLSX.utils.book_append_sheet(wb, wsKardex, "Kardex Físico y Valorizado");
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen por Producto");
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const fileName = `Kardex_Contable_GemelosCoffee_${todayStr}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      showToast("Reporte contable de Kardex (.xlsx) exportado exitosamente.", "success");
+    } catch (error) {
+      console.error("Error al exportar Excel de Kardex:", error);
+      showToast("Error al generar el archivo Excel de Kardex.", "error");
+    }
+  };
+
+  // ====================================================
+  // EXPORTACIÓN A PDF (.pdf)
+  // ====================================================
+  const handleExportPDF = () => {
+    if (filteredMovements.length === 0) {
+      showToast("No hay registros de Kardex en el período seleccionado para exportar.", "warning");
+      return;
+    }
+
+    try {
+      // Formato apaisado / horizontal (landscape) para que las columnas contables se aprecien con holgura
+      const doc = new jsPDF("l", "pt", "a4");
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Encabezado Corporativo Café Oscuro (#2A1708)
+      doc.setFillColor(42, 23, 8);
+      doc.rect(0, 0, pageWidth, 60, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.text("GEMELOS COFFEE POS", 40, 34);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(245, 230, 211);
+      doc.text("Reporte Oficial de Kardex Físico y Valorizado (Costo Promedio Ponderado - CPP)", 40, 48);
+
+      // Metadatos a la derecha
+      doc.setTextColor(245, 230, 211);
+      doc.setFontSize(9);
+      const generatedAt = `Generado el: ${new Date().toLocaleString("es-ES")}`;
+      doc.text(generatedAt, pageWidth - 40, 34, { align: "right" });
+
+      const filterSummary = `Período: ${datePreset.toUpperCase()} | Total Registros: ${filteredMovements.length}`;
+      doc.text(filterSummary, pageWidth - 40, 48, { align: "right" });
+
+      // Resumen Ejecutivo en Caja Beige (#FAF6F0)
+      let startY = 75;
+      doc.setFillColor(250, 246, 240);
+      doc.roundedRect(40, startY, pageWidth - 80, 45, 8, 8, "F");
+
+      doc.setTextColor(42, 23, 8);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(`Total Movimientos: ${filteredMovements.length}`, 60, startY + 27);
+      doc.text(`Entradas (+): ${filteredMetrics.totalAddedUnits} uds`, 230, startY + 27);
+      doc.text(`Salidas / Ventas (-): ${filteredMetrics.totalSoldUnits} uds`, 420, startY + 27);
+      doc.text(`Ajustes Manuales: ${filteredMetrics.adjustmentsCount}`, 630, startY + 27);
+
+      // Filas para la tabla
+      const tableRows = filteredMovements.map((m) => {
+        const d = new Date(m.created_at);
+        const dateStr = `${d.toLocaleDateString("es-ES")} ${d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
+        const qty = parseInt(m.quantity, 10) || 0;
+        const qtyDisplay = qty > 0 ? `+${qty}` : `${qty}`;
+        const unitCostVal = parseFloat(m.unit_cost || 0).toFixed(2);
+        const totalCostVal = parseFloat(m.total_cost || 0).toFixed(2);
+        const resultingStockVal = `${m.resulting_stock} uds`;
+        const resultingBalanceVal = `C$ ${parseFloat(m.resulting_balance || 0).toFixed(2)}`;
+
+        let typeText = "Venta";
+        if (m.movement_type === "RESTOCK") typeText = "Entrada";
+        else if (m.movement_type === "ADJUSTMENT") typeText = "Ajuste";
+        else if (m.movement_type === "INITIAL") typeText = "Inicial";
+
+        return [
+          `#${m.id}`,
+          dateStr,
+          m.product_name,
+          typeText,
+          qtyDisplay,
+          `C$ ${unitCostVal}`,
+          totalCostVal >= 0 ? `+C$ ${totalCostVal}` : `-C$ ${Math.abs(totalCostVal).toFixed(2)}`,
+          resultingStockVal,
+          resultingBalanceVal,
+          m.notes || m.username || "—",
+        ];
+      });
+
+      doc.autoTable({
+        startY: startY + 55,
+        head: [["ID", "Fecha & Hora", "Producto", "Tipo", "Cant.", "Costo CPP", "Monto Mov.", "Stock Res.", "Saldo Total", "Notas / Responsable"]],
+        body: tableRows,
+        margin: { left: 40, right: 40 },
+        theme: "grid",
+        styles: {
+          fontSize: 8,
+          cellPadding: 5,
+          textColor: [40, 40, 40],
+        },
+        headStyles: {
+          fillColor: [95, 59, 26], // Café corporativo #5F3B1A
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "left",
+        },
+        columnStyles: {
+          0: { cellWidth: 35, fontStyle: "bold" },
+          1: { cellWidth: 85 },
+          2: { cellWidth: "auto", fontStyle: "bold" },
+          3: { cellWidth: 55 },
+          4: { cellWidth: 45, halign: "center", fontStyle: "bold" },
+          5: { cellWidth: 65, halign: "right" },
+          6: { cellWidth: 70, halign: "right" },
+          7: { cellWidth: 60, halign: "center", fontStyle: "bold" },
+          8: { cellWidth: 75, halign: "right", fontStyle: "bold" },
+          9: { cellWidth: 130 },
+        },
+        alternateRowStyles: {
+          fillColor: [253, 251, 247],
+        },
+        didDrawPage: () => {
+          doc.setFontSize(8);
+          doc.setTextColor(130, 130, 130);
+          const pageNum = `Página ${doc.internal.getNumberOfPages()}`;
+          doc.text(pageNum, pageWidth - 40, doc.internal.pageSize.getHeight() - 20, { align: "right" });
+          doc.text("Gemelos Coffee POS - Documento Contable Oficial de Kardex", 40, doc.internal.pageSize.getHeight() - 20);
+        },
+      });
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const fileName = `Kardex_Contable_GemelosCoffee_${todayStr}.pdf`;
+      doc.save(fileName);
+
+      showToast("Reporte PDF de Kardex exportado exitosamente.", "success");
+    } catch (error) {
+      console.error("Error al exportar PDF de Kardex:", error);
+      showToast("Error al generar el archivo PDF de Kardex.", "error");
+    }
+  };
 
   // Producto seleccionado en el modal
   const selectedProductObj = useMemo(() => {
@@ -177,7 +459,7 @@ export default function Kardex() {
       await axiosInstance.post("kardex/", payload);
 
       showToast(
-        isDeduction 
+        isDeduction
           ? `Ajuste registrado: -${qty} uds de ${selectedProductObj?.name || "producto"}.`
           : `Ajuste registrado: +${qty} uds de ${selectedProductObj?.name || "producto"}.`,
         "success"
@@ -236,11 +518,11 @@ export default function Kardex() {
 
   return (
     <div className="space-y-6 w-full font-sans animate-fade-in pb-12">
-      
+
       {/* ==================================================== */}
-      {/* ENCABEZADO Y BOTÓN DE ACCIÓN ÚNICO (AJUSTE)          */}
+      {/* ENCABEZADO Y BOTONES DE ACCIÓN Y EXPORTACIÓN        */}
       {/* ==================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 text-xs font-bold mb-2">
             <BookOpen className="w-3.5 h-3.5 text-amber-700" />
@@ -254,23 +536,48 @@ export default function Kardex() {
           </p>
         </div>
 
-        {/* Botón único de Ajuste en Kardex (Las compras se realizan formalmente en /inventory) */}
-        <button
-          onClick={() => {
-            const firstP = products[0];
-            setForm({
-              product: firstP ? String(firstP.id) : "",
-              adjustment_type: "OUT",
-              quantity: "",
-              notes: "",
-            });
-            setShowModal(true);
-          }}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-amber-900/20 hover:from-amber-800 hover:to-amber-950 transition-all active:scale-[0.99]"
-        >
-          <SlidersHorizontal className="w-4 h-4 text-amber-300" />
-          <span>Registrar Ajuste de Stock</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={fetchData}
+            title="Recargar datos de Kardex"
+            className="rounded-2xl bg-white hover:bg-stone-50 border border-stone-200/80 p-3 text-slate-600 shadow-sm transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 px-4 py-3 text-xs font-bold text-white shadow-sm shadow-emerald-900/20 transition-all active:scale-[0.99]"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Exportar Excel</span>
+          </button>
+
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-800 to-amber-950 hover:from-amber-900 hover:to-black px-4 py-3 text-xs font-bold text-white shadow-sm shadow-amber-950/20 transition-all active:scale-[0.99]"
+          >
+            <FileText className="w-4 h-4" />
+            <span>Exportar PDF</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const firstP = products[0];
+              setForm({
+                product: firstP ? String(firstP.id) : "",
+                adjustment_type: "OUT",
+                quantity: "",
+                notes: "",
+              });
+              setShowModal(true);
+            }}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-amber-900/20 hover:from-amber-800 hover:to-amber-950 transition-all active:scale-[0.99]"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-amber-300" />
+            <span>Registrar Ajuste</span>
+          </button>
+        </div>
       </div>
 
       {/* ==================================================== */}
@@ -284,9 +591,9 @@ export default function Kardex() {
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Total Registros
+                Registros Filtrados
               </p>
-              <p className="text-xl font-black text-slate-800">{metrics.totalMovements}</p>
+              <p className="text-xl font-black text-slate-800">{filteredMetrics.totalMovements}</p>
             </div>
           </div>
         </div>
@@ -298,9 +605,9 @@ export default function Kardex() {
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Unidades Vendidas
+                Unidades Egresadas
               </p>
-              <p className="text-xl font-black text-red-600">-{metrics.totalSoldUnits}</p>
+              <p className="text-xl font-black text-red-600">-{filteredMetrics.totalSoldUnits}</p>
             </div>
           </div>
         </div>
@@ -314,7 +621,7 @@ export default function Kardex() {
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 Unidades Ingresadas
               </p>
-              <p className="text-xl font-black text-emerald-700">+{metrics.totalAddedUnits}</p>
+              <p className="text-xl font-black text-emerald-700">+{filteredMetrics.totalAddedUnits}</p>
             </div>
           </div>
         </div>
@@ -328,7 +635,7 @@ export default function Kardex() {
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 Ajustes Manuales
               </p>
-              <p className="text-xl font-black text-amber-800">{metrics.adjustmentsCount}</p>
+              <p className="text-xl font-black text-amber-800">{filteredMetrics.adjustmentsCount}</p>
             </div>
           </div>
         </div>
@@ -337,11 +644,10 @@ export default function Kardex() {
       {/* Alerta de Feedback */}
       {feedback.text && (
         <div
-          className={`flex items-center justify-between p-4 rounded-2xl text-xs sm:text-sm animate-fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-50 text-emerald-900 border border-emerald-200"
-              : "bg-red-50 text-red-900 border border-red-200"
-          }`}
+          className={`flex items-center justify-between p-4 rounded-2xl text-xs sm:text-sm animate-fade-in ${feedback.type === "success"
+            ? "bg-emerald-50 text-emerald-900 border border-emerald-200"
+            : "bg-red-50 text-red-900 border border-red-200"
+            }`}
         >
           <div className="flex items-center gap-2">
             {feedback.type === "success" ? (
@@ -364,22 +670,66 @@ export default function Kardex() {
       {/* TABLA PRINCIPAL Y BARRA DE FILTROS                  */}
       {/* ==================================================== */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-stone-200/80 space-y-4 w-full">
-        {/* Barra de Filtros */}
+        {/* Barra de Filtros y Rango de Fechas */}
         <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por producto, categoría, notas o responsable..."
+              placeholder="Buscar por producto, notas, responsable o # ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Presets de Fecha */}
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setDatePreset("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "all" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
+              >
+                Histórico
+              </button>
+              <button
+                type="button"
+                onClick={() => setDatePreset("today")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "today" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
+              >
+                Hoy
+              </button>
+              <button
+                type="button"
+                onClick={() => setDatePreset("7days")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "7days" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
+              >
+                7 Días
+              </button>
+              <button
+                type="button"
+                onClick={() => setDatePreset("month")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "month" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
+              >
+                Este Mes
+              </button>
+              <button
+                type="button"
+                onClick={() => setDatePreset("custom")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "custom" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
+              >
+                Personalizado
+              </button>
+            </div>
+
             {/* Filtro por Producto con Búsqueda Reactiva */}
-            <div className="w-64">
+            <div className="w-56 sm:w-64">
               <ProductCombobox
                 size="compact"
                 allOptionLabel="Todos los productos físicos"
@@ -395,23 +745,50 @@ export default function Kardex() {
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 px-3.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-600"
+              className="rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 px-3 text-xs font-semibold text-slate-800 outline-none focus:border-amber-600"
             >
-              <option value="all">Todos los tipos de movimiento</option>
+              <option value="all">Todos los movimientos</option>
               <option value="SALE">Ventas POS</option>
-              <option value="RESTOCK">Entradas / Compra (Inventario)</option>
+              <option value="RESTOCK">Entradas / Compra</option>
               <option value="ADJUSTMENT">Ajustes Manuales</option>
               <option value="INITIAL">Stock Inicial</option>
             </select>
-
-            <button
-              onClick={fetchData}
-              title="Recargar datos"
-              className="rounded-2xl bg-stone-100/80 hover:bg-stone-200/80 border border-stone-200/80 p-2.5 text-slate-600 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
           </div>
+        </div>
+
+        {/* Selector de Rango Personalizado */}
+        {datePreset === "custom" && (
+          <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 flex flex-wrap items-center gap-3 animate-fade-in text-xs">
+            <span className="font-bold text-slate-700 flex items-center gap-1">
+              <Calendar className="w-4 h-4 text-amber-700" />
+              <span>Rango de Fechas:</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <label className="text-slate-500 font-medium">Desde:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-slate-800 outline-none focus:border-amber-600"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-slate-500 font-medium">Hasta:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-slate-800 outline-none focus:border-amber-600"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Resumen del Filtro Actual y Orden Contable */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 px-1 gap-1">
+          <span className="font-semibold text-slate-700">
+            Entradas: <strong className="text-emerald-700">+{filteredMetrics.totalAddedUnits}</strong> | Salidas: <strong className="text-red-600">-{filteredMetrics.totalSoldUnits}</strong>
+          </span>
         </div>
 
         {/* Contenedor de la Tabla con Scroll Desacoplado y Cabecera Fija */}
@@ -471,7 +848,7 @@ export default function Kardex() {
                       {/* Fecha & Hora */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="font-bold text-slate-800">{formattedDate}</div>
-                        <div className="text-[10px] text-slate-400">{formattedTime}</div>
+                        <div className="text-[10px] text-slate-400">{formattedTime} (ID #{item.id})</div>
                       </td>
 
                       {/* Producto & Categoría */}
@@ -495,11 +872,10 @@ export default function Kardex() {
                       {/* Cantidad (+/-) */}
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`font-black px-2.5 py-1 rounded-lg ${
-                            isPositive
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                              : "bg-red-50 text-red-700 border border-red-200/60"
-                          }`}
+                          className={`font-black px-2.5 py-1 rounded-lg ${isPositive
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                            : "bg-red-50 text-red-700 border border-red-200/60"
+                            }`}
                         >
                           {isPositive ? `+${item.quantity}` : item.quantity}
                         </span>
@@ -584,7 +960,7 @@ export default function Kardex() {
             {/* Formulario */}
             <form onSubmit={handleSubmitAdjustment} className="flex-1 flex flex-col min-h-0 pt-4">
               <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                
+
                 {/* 1. Selector Reactivo con Combobox y Búsqueda en Vivo */}
                 <ProductCombobox
                   label="Producto Físico a Ajustar"
@@ -607,11 +983,10 @@ export default function Kardex() {
                     <button
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, adjustment_type: "OUT" }))}
-                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${
-                        isDeduction
-                          ? "bg-red-50/80 border-red-300 ring-2 ring-red-500/20 shadow-xs"
-                          : "bg-stone-50 border-stone-200 hover:bg-stone-100/60 opacity-80"
-                      }`}
+                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${isDeduction
+                        ? "bg-red-50/80 border-red-300 ring-2 ring-red-500/20 shadow-xs"
+                        : "bg-stone-50 border-stone-200 hover:bg-stone-100/60 opacity-80"
+                        }`}
                     >
                       <div className={`p-2 rounded-xl shrink-0 ${isDeduction ? "bg-red-200 text-red-800" : "bg-stone-200 text-stone-600"}`}>
                         <MinusCircle className="w-5 h-5" />
@@ -630,11 +1005,10 @@ export default function Kardex() {
                     <button
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, adjustment_type: "IN" }))}
-                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${
-                        !isDeduction
-                          ? "bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs"
-                          : "bg-stone-50 border-stone-200 hover:bg-stone-100/60 opacity-80"
-                      }`}
+                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${!isDeduction
+                        ? "bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs"
+                        : "bg-stone-50 border-stone-200 hover:bg-stone-100/60 opacity-80"
+                        }`}
                     >
                       <div className={`p-2 rounded-xl shrink-0 ${!isDeduction ? "bg-emerald-200 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
                         <PlusCircle className="w-5 h-5" />
@@ -669,11 +1043,10 @@ export default function Kardex() {
                     onChange={(e) => setForm((prev) => ({ ...prev, quantity: e.target.value }))}
                     placeholder="Ej. 1, 2, 5 (el sistema aplica el signo automáticamente)"
                     required
-                    className={`w-full rounded-2xl bg-stone-50 border py-3 px-4 text-sm font-black text-slate-900 outline-none transition-all ${
-                      isStockInsufficient 
-                        ? "border-red-400 focus:ring-2 focus:ring-red-500/20 text-red-700" 
-                        : "border-stone-200/90 focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
-                    }`}
+                    className={`w-full rounded-2xl bg-stone-50 border py-3 px-4 text-sm font-black text-slate-900 outline-none transition-all ${isStockInsufficient
+                      ? "border-red-400 focus:ring-2 focus:ring-red-500/20 text-red-700"
+                      : "border-stone-200/90 focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                      }`}
                   />
                 </div>
 

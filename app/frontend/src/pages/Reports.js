@@ -5,20 +5,20 @@ import Pagination from "../components/Pagination";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Calendar, 
-  Receipt, 
-  CreditCard, 
-  Banknote, 
-  ArrowRightLeft, 
-  Award, 
-  RefreshCw, 
-  Search, 
-  Eye, 
-  X, 
-  Coffee, 
+import {
+  TrendingUp,
+  DollarSign,
+  Calendar,
+  Receipt,
+  CreditCard,
+  Banknote,
+  ArrowRightLeft,
+  Award,
+  RefreshCw,
+  Search,
+  Eye,
+  X,
+  Coffee,
   Sparkles,
   FileSpreadsheet,
   FileText
@@ -29,7 +29,7 @@ export default function Reports() {
   const [stats, setStats] = useState(null);
   const [salesList, setSalesList] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPaymentFilter, setSelectedPaymentFilter] = useState("all");
@@ -68,11 +68,11 @@ export default function Reports() {
     return salesList.filter((s) => {
       // 1. Filtro por término de búsqueda (ID, cajero, o productos incluidos)
       const saleItemsNames = s.items?.map((it) => it.product_name || "").join(" ").toLowerCase() || "";
-      const matchesSearch = 
+      const matchesSearch =
         String(s.id).includes(searchTerm) ||
         (s.cashier_username && s.cashier_username.toLowerCase().includes(searchTerm.toLowerCase())) ||
         saleItemsNames.includes(searchTerm.toLowerCase());
-      
+
       if (!matchesSearch) return false;
 
       // 2. Filtro por método de pago
@@ -332,7 +332,7 @@ export default function Reports() {
 
   return (
     <div className="space-y-6 w-full font-sans animate-fade-in pb-12">
-      
+
       {/* ==================================================== */}
       {/* CABECERA Y ACCIONES                                 */}
       {/* ==================================================== */}
@@ -470,7 +470,7 @@ export default function Reports() {
       {/* GRÁFICO DE TENDENCIA Y TOP PRODUCTOS (2 COLUMNAS)   */}
       {/* ==================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-        
+
         {/* Panel Izquierdo (2 cols): Gráfica de Tendencia Diaria */}
         <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-stone-200/80 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-6">
@@ -592,41 +592,36 @@ export default function Reports() {
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 overflow-x-auto">
               <button
                 onClick={() => setDatePreset("all")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  datePreset === "all" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "all" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 Histórico
               </button>
               <button
                 onClick={() => setDatePreset("today")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  datePreset === "today" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "today" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 Hoy
               </button>
               <button
                 onClick={() => setDatePreset("7days")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  datePreset === "7days" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "7days" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 7 Días
               </button>
               <button
                 onClick={() => setDatePreset("month")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  datePreset === "month" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "month" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 Este Mes
               </button>
               <button
                 onClick={() => setDatePreset("custom")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  datePreset === "custom" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${datePreset === "custom" ? "bg-white text-amber-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 Personalizado
               </button>
@@ -676,7 +671,6 @@ export default function Reports() {
 
         {/* Resumen del Filtro Actual */}
         <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-          <span>Mostrando <strong>{filteredSales.length}</strong> ventas</span>
           <span className="font-bold text-slate-800">
             Total en este filtro: <span className="text-emerald-700">C$ {filteredMetrics.totalRevenue.toFixed(2)}</span>
           </span>

@@ -294,7 +294,7 @@ export default function Sales() {
                       <div className="absolute bottom-2 left-2">
                         {isService ? (
                           <span className="px-2 py-0.5 rounded-md bg-amber-800/90 text-amber-100 text-[10px] font-bold shadow-sm backdrop-blur-xs">
-                            Preparado
+                            Servicio / En barra
                           </span>
                         ) : isOutOfStock ? (
                           <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold shadow-sm">
@@ -481,7 +481,7 @@ export default function Sales() {
                       </span>
                       <button
                         onClick={() => incrementQuantity(item.id)}
-                        disabled={item.quantity >= item.stock}
+                        disabled={item.item_type !== "SERVICE" && item.quantity >= item.stock}
                         className="p-1.5 text-slate-500 hover:text-amber-800 hover:bg-slate-100 rounded-r-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-3.5 h-3.5" />

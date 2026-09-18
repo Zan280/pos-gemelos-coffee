@@ -23,13 +23,17 @@ export const CartProvider = ({ children }) => {
   }, [cartItems]);
 
   /**
-   * Agrega un producto al carrito respetando el stock disponible
+   * Agrega un producto al carrito respetando el stock disponible si es producto físico
+   * Los servicios/preparados se pueden agregar sin restricciones de stock
    */
   const addToCart = (product, quantityToAdd = 1) => {
     const qty = parseInt(quantityToAdd, 10) || 1;
     if (qty <= 0) return { success: false, message: "La cantidad debe ser mayor a 0." };
 
-    if (product.stock <= 0) {
+    const isService = product.item_type === "SERVICE";
+
+    // Validación de stock solo para productos físicos
+    if (!isService && product.stock <= 0) {
       return { success: false, message: `El producto "${product.name}" está agotado.` };
     }
 
@@ -41,7 +45,8 @@ export const CartProvider = ({ children }) => {
 
       if (existingItem) {
         const newTotalQty = existingItem.quantity + qty;
-        if (newTotalQty > product.stock) {
+        
+        if (!isService && newTotalQty > product.stock) {
           success = false;
           message = `Solo hay ${product.stock} unidades disponibles de "${product.name}".`;
           return prevItems.map((item) =>
@@ -54,13 +59,19 @@ export const CartProvider = ({ children }) => {
           item.id === product.id ? { ...item, quantity: newTotalQty } : item
         );
       } else {
-        const initialQty = Math.min(qty, product.stock);
-        if (qty > product.stock) {
-          message = `Se agregaron solo ${product.stock} unidades (máximo disponible).`;
+        if (!isService) {
+          const initialQty = Math.min(qty, product.stock);
+          if (qty > product.stock) {
+            message = `Se agregaron solo ${product.stock} unidades (máximo disponible).`;
+          } else {
+            message = `"${product.name}" agregado al pedido.`;
+          }
+          return [...prevItems, { ...product, quantity: initialQty }];
         } else {
-          message = `"${product.name}" agregado al pedido.`;
+          // Servicio / Preparado en barra sin límite de existencias físicas
+          message = `"${product.name}" (Servicio) agregado al pedido.`;
+          return [...prevItems, { ...product, quantity: qty }];
         }
-        return [...prevItems, { ...product, quantity: initialQty }];
       }
     });
 
@@ -80,8 +91,8 @@ export const CartProvider = ({ children }) => {
     setCartItems((prevItems) =>
       prevItems.map((item) => {
         if (item.id === productId) {
-          const maxStock = item.stock || 9999;
-          const finalQty = Math.min(qty, maxStock);
+          const isService = item.item_type === "SERVICE";
+          const finalQty = isService ? qty : Math.min(qty, item.stock || 9999);
           return { ...item, quantity: finalQty };
         }
         return item;
@@ -96,7 +107,8 @@ export const CartProvider = ({ children }) => {
     setCartItems((prevItems) =>
       prevItems.map((item) => {
         if (item.id === productId) {
-          if (item.quantity < item.stock) {
+          const isService = item.item_type === "SERVICE";
+          if (isService || item.quantity < item.stock) {
             return { ...item, quantity: item.quantity + 1 };
           }
         }
