@@ -324,10 +324,26 @@ class StockMovementViewSet(viewsets.ModelViewSet):
                 )
 
             elif movement_type == 'ADJUSTMENT':
+                # Soporte para dirección del ajuste (SUBTRACT/OUT vs ADD/IN)
+                adjustment_type = str(request.data.get('adjustment_type', '')).upper().strip()
+                if adjustment_type in ['SUBTRACT', 'OUT', 'DECREASE', 'MERMA', 'FALTANTE']:
+                    quantity = -abs(quantity)
+                elif adjustment_type in ['ADD', 'IN', 'INCREASE', 'SOBRANTE', 'ENTRADA']:
+                    quantity = abs(quantity)
+
+                if quantity == 0:
+                    return Response({"error": "La cantidad de ajuste no puede ser cero."}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validar obligatoriedad del motivo / justificación
+                if not notes or not str(notes).strip():
+                    return Response({"error": "El motivo o justificación del ajuste es obligatorio para la trazabilidad contable."}, status=status.HTTP_400_BAD_REQUEST)
+
                 applied_cost = previous_cost
                 resulting_stock = previous_stock + quantity
                 if resulting_stock < 0:
-                    return Response({"error": "El stock resultante no puede ser menor a cero."}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({
+                        "error": f"Stock insuficiente para realizar el ajuste. Stock disponible: {previous_stock} unidades, intentando deducir {abs(quantity)} unidades."
+                    }, status=status.HTTP_400_BAD_REQUEST)
 
                 resulting_balance = Decimal(str(resulting_stock)) * applied_cost
                 movement_total = Decimal(str(quantity)) * applied_cost
@@ -346,7 +362,7 @@ class StockMovementViewSet(viewsets.ModelViewSet):
                     previous_balance=previous_balance,
                     resulting_balance=resulting_balance,
                     user=request.user if request.user.is_authenticated else None,
-                    notes=notes or "Ajuste manual de inventario"
+                    notes=notes.strip()
                 )
             else:
                 return Response({"error": "Tipo de movimiento no soportado."}, status=status.HTTP_400_BAD_REQUEST)

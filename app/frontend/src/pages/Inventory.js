@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import axiosInstance from "../axiosConfig";
 import { useToast } from "../context/ToastContext";
+import ProductCombobox from "../components/ProductCombobox";
 import { 
   Package, 
   Search, 
@@ -1062,25 +1063,17 @@ export default function Inventory() {
             <form onSubmit={handleSubmitRestock} className="flex-1 flex flex-col min-h-0 pt-4">
               <div className="flex-1 overflow-y-auto pr-2 space-y-4">
                 
-                {/* Selector de Producto */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Producto de Reventa (Físico) *
-                  </label>
-                  <select
-                    required
-                    value={restockForm.product_id}
-                    onChange={(e) => handleRestockProductChange(e.target.value)}
-                    className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-900 font-semibold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                  >
-                    <option value="">Selecciona un producto físico...</option>
-                    {physicalProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} — [Stock actual: {p.stock} uds | CPP: C$ {parseFloat(p.cost_price).toFixed(2)} | Venta: C$ {parseFloat(p.price).toFixed(2)}]
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Selector Reactivo con Combobox y Búsqueda en Vivo */}
+                <ProductCombobox
+                  label="Producto de Reventa (Físico)"
+                  required
+                  theme="emerald"
+                  products={physicalProducts}
+                  value={restockForm.product_id}
+                  onChange={(productId) => handleRestockProductChange(productId)}
+                  placeholder="Escribe o busca el producto físico por nombre o categoría..."
+                  helperText="Solo se listan ítems tipo Producto físico con trazabilidad de stock y CPP"
+                />
 
                 {/* Cantidad y Costo Unitario de Compra */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

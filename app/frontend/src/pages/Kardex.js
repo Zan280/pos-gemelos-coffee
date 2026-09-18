@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axiosInstance from "../axiosConfig";
 import { useToast } from "../context/ToastContext";
+import ProductCombobox from "../components/ProductCombobox";
 import { 
   BookOpen, 
   Search, 
-  Plus, 
   ArrowUpRight, 
   ArrowDownLeft, 
   RotateCcw, 
@@ -14,8 +14,22 @@ import {
   X, 
   CheckCircle2, 
   AlertCircle,
-  Tag
+  Tag,
+  SlidersHorizontal,
+  MinusCircle,
+  PlusCircle,
+  AlertTriangle,
+  FileText
 } from "lucide-react";
+
+const SUGGESTED_REASONS = [
+  "Apertura de bolsa para barra",
+  "Merma por derrame / daño",
+  "Ajuste por conteo físico",
+  "Consumo interno / Degustación",
+  "Producto vencido / descarte",
+  "Corrección administrativa"
+];
 
 export default function Kardex() {
   const [movements, setMovements] = useState([]);
@@ -32,10 +46,8 @@ export default function Kardex() {
 
   const [form, setForm] = useState({
     product: "",
-    movement_type: "RESTOCK",
+    adjustment_type: "OUT", // "OUT" (Merma / Consumo Interno -) vs "IN" (Sobrante / Entrada por Ajuste +)
     quantity: "",
-    unit_cost: "",
-    new_sale_price: "",
     notes: "",
   });
 
@@ -99,30 +111,39 @@ export default function Kardex() {
     };
   }, [movements]);
 
-  // Manejar cambio de producto en formulario
-  const handleFormProductChange = (productId) => {
-    const selected = products.find((p) => String(p.id) === String(productId));
-    if (selected) {
-      setForm((prev) => ({
-        ...prev,
-        product: String(productId),
-        unit_cost: selected.cost_price || "0.00",
-        new_sale_price: selected.price || "",
-      }));
-    } else {
-      setForm((prev) => ({ ...prev, product: String(productId) }));
-    }
-  };
+  // Producto seleccionado en el modal
+  const selectedProductObj = useMemo(() => {
+    return products.find((p) => String(p.id) === String(form.product)) || null;
+  }, [products, form.product]);
 
+  // Cálculos en tiempo real para el impacto del ajuste
+  const qtyNum = parseInt(form.quantity, 10) || 0;
+  const currentStock = selectedProductObj ? selectedProductObj.stock : 0;
+  const isDeduction = form.adjustment_type === "OUT";
+  const deltaQty = isDeduction ? -qtyNum : qtyNum;
+  const projectedStock = currentStock + deltaQty;
+  const isStockInsufficient = isDeduction && qtyNum > currentStock;
+  const unitCost = selectedProductObj ? parseFloat(selectedProductObj.cost_price || 0) : 0;
+  const estimatedMonetaryImpact = (qtyNum * unitCost) * (isDeduction ? -1 : 1);
+
+  // Manejar envío del ajuste manual
   const handleSubmitAdjustment = async (e) => {
     e.preventDefault();
     if (!form.product) {
-      setFeedback({ type: "error", text: "Debes seleccionar un producto físico." });
+      showToast("Debes seleccionar un producto físico.", "warning");
       return;
     }
     const qty = parseInt(form.quantity, 10);
-    if (isNaN(qty) || qty === 0) {
-      setFeedback({ type: "error", text: "Ingresa una cantidad numérica válida distinta de cero." });
+    if (isNaN(qty) || qty <= 0) {
+      showToast("Ingresa una cantidad entera positiva mayor a cero.", "warning");
+      return;
+    }
+    if (!form.notes.trim()) {
+      showToast("El motivo o justificación del ajuste es obligatorio.", "warning");
+      return;
+    }
+    if (isStockInsufficient) {
+      showToast(`Stock insuficiente. Disponible: ${currentStock}, intentando deducir: ${qty}`, "error");
       return;
     }
 
@@ -132,22 +153,26 @@ export default function Kardex() {
     try {
       const payload = {
         product: parseInt(form.product, 10),
-        movement_type: form.movement_type,
-        quantity: qty,
-        unit_cost: form.unit_cost ? parseFloat(form.unit_cost) : undefined,
-        new_sale_price: form.new_sale_price ? parseFloat(form.new_sale_price) : undefined,
-        notes: form.notes,
+        movement_type: "ADJUSTMENT",
+        adjustment_type: form.adjustment_type,
+        quantity: isDeduction ? -qty : qty,
+        notes: form.notes.trim(),
       };
 
       await axiosInstance.post("kardex/", payload);
 
-      showToast("Movimiento de stock registrado correctamente en Kardex.", "success");
+      showToast(
+        isDeduction 
+          ? `Ajuste registrado: -${qty} uds de ${selectedProductObj?.name || "producto"}.`
+          : `Ajuste registrado: +${qty} uds de ${selectedProductObj?.name || "producto"}.`,
+        "success"
+      );
       setShowModal(false);
-      setForm({ product: "", movement_type: "RESTOCK", quantity: "", unit_cost: "", new_sale_price: "", notes: "" });
+      setForm({ product: "", adjustment_type: "OUT", quantity: "", notes: "" });
       fetchData();
     } catch (err) {
-      console.error("Error al registrar movimiento:", err);
-      const msg = err.response?.data?.error || "Error al registrar el movimiento en Kardex.";
+      console.error("Error al registrar ajuste:", err);
+      const msg = err.response?.data?.error || "Error al registrar el ajuste en Kardex.";
       setFeedback({ type: "error", text: msg });
       showToast(msg, "error");
     } finally {
@@ -198,7 +223,7 @@ export default function Kardex() {
     <div className="space-y-6 w-full font-sans animate-fade-in pb-12">
       
       {/* ==================================================== */}
-      {/* ENCABEZADO Y BOTÓN DE ACCIÓN                         */}
+      {/* ENCABEZADO Y BOTÓN DE ACCIÓN ÚNICO (AJUSTE)          */}
       {/* ==================================================== */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -210,27 +235,26 @@ export default function Kardex() {
             Kardex de Inventario Físico
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Registro cronológico valorizado bajo la metodología de Costo Promedio Ponderado (CPP)
+            Registro cronológico valorizado bajo la metodología de Costo Promedio Ponderado (CPP).
           </p>
         </div>
 
+        {/* Botón único de Ajuste en Kardex (Las compras se realizan formalmente en /inventory) */}
         <button
           onClick={() => {
             const firstP = products[0];
             setForm({
               product: firstP ? String(firstP.id) : "",
-              movement_type: "RESTOCK",
+              adjustment_type: "OUT",
               quantity: "",
-              unit_cost: firstP ? firstP.cost_price || "0.00" : "",
-              new_sale_price: firstP ? firstP.price || "" : "",
               notes: "",
             });
             setShowModal(true);
           }}
           className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-amber-900/20 hover:from-amber-800 hover:to-amber-950 transition-all active:scale-[0.99]"
         >
-          <Plus className="w-4 h-4" />
-          <span>Registrar Movimiento / Entrada</span>
+          <SlidersHorizontal className="w-4 h-4 text-amber-300" />
+          <span>Registrar Ajuste de Stock</span>
         </button>
       </div>
 
@@ -331,7 +355,7 @@ export default function Kardex() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por producto, categoría o responsable..."
+              placeholder="Buscar por producto, categoría, notas o responsable..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all"
@@ -339,19 +363,18 @@ export default function Kardex() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Filtro por Producto */}
-            <select
-              value={selectedProduct}
-              onChange={(e) => setSelectedProduct(e.target.value)}
-              className="rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 px-3.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-600"
-            >
-              <option value="all">Todos los productos físicos</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.category || "General"})
-                </option>
-              ))}
-            </select>
+            {/* Filtro por Producto con Búsqueda Reactiva */}
+            <div className="w-64">
+              <ProductCombobox
+                size="compact"
+                allOptionLabel="Todos los productos físicos"
+                products={products}
+                value={selectedProduct}
+                onChange={(val) => setSelectedProduct(val)}
+                placeholder="Filtrar por producto..."
+                theme="amber"
+              />
+            </div>
 
             {/* Filtro por Tipo */}
             <select
@@ -359,9 +382,9 @@ export default function Kardex() {
               onChange={(e) => setSelectedType(e.target.value)}
               className="rounded-2xl bg-stone-100/80 border border-stone-200/80 py-2.5 px-3.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-600"
             >
-              <option value="all">Todos los tipos</option>
+              <option value="all">Todos los tipos de movimiento</option>
               <option value="SALE">Ventas POS</option>
-              <option value="RESTOCK">Entradas / Compra</option>
+              <option value="RESTOCK">Entradas / Compra (Inventario)</option>
               <option value="ADJUSTMENT">Ajustes Manuales</option>
               <option value="INITIAL">Stock Inicial</option>
             </select>
@@ -389,7 +412,7 @@ export default function Kardex() {
                 <th className="py-3.5 px-4 text-right">Total Movimiento</th>
                 <th className="py-3.5 px-4 text-center">Stock Resultante</th>
                 <th className="py-3.5 px-4 text-right">Saldo Monetario</th>
-                <th className="py-3.5 px-4">Responsable & Detalle</th>
+                <th className="py-3.5 px-4">Responsable & Justificación</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -407,7 +430,7 @@ export default function Kardex() {
                   <td colSpan="9" className="py-12 text-center text-slate-400">
                     <Coffee className="w-10 h-10 mx-auto text-stone-300 mb-2" />
                     <p className="text-sm font-semibold text-slate-600">No hay movimientos registrados</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Las ventas de productos físicos y compras aparecerán aquí automáticamente.</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Las ventas de productos físicos, entradas de compras y ajustes aparecerán aquí.</p>
                   </td>
                 </tr>
               ) : (
@@ -489,14 +512,14 @@ export default function Kardex() {
                         C$ {resultingBalanceVal.toFixed(2)}
                       </td>
 
-                      {/* Responsable & Notas */}
+                      {/* Responsable & Justificación */}
                       <td className="py-3 px-4 text-xs">
                         <div className="font-semibold text-amber-950 flex items-center gap-1">
                           <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded text-[10px]">
-                            {item.username}
+                            {item.username || "Admin"}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-500 truncate max-w-xs mt-0.5">
+                        <div className="text-[11px] text-slate-600 truncate max-w-xs mt-0.5" title={item.notes}>
                           {item.notes || "—"}
                         </div>
                       </td>
@@ -510,129 +533,215 @@ export default function Kardex() {
       </div>
 
       {/* ==================================================== */}
-      {/* MODAL DE ENTRADA / AJUSTE MANUAL (ESPACIOSO)         */}
+      {/* MODAL INTUITIVO DE AJUSTE MANUAL DE INVENTARIO       */}
       {/* ==================================================== */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-stone-200 my-auto max-h-[90vh] flex flex-col">
+            {/* Cabecera del Modal */}
             <div className="flex items-center justify-between border-b border-stone-100 pb-4 flex-shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-amber-800" />
-                  <span>Registrar Movimiento en Kardex</span>
+                  <SlidersHorizontal className="w-5 h-5 text-amber-800" />
+                  <span>Ajuste Manual de Inventario</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Reabastecimiento con costo de compra o ajuste administrativo
+                  Ajuste directo de existencias para mermas, consumo interno en barra o sobrantes físicos.
                 </p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Formulario */}
             <form onSubmit={handleSubmitAdjustment} className="flex-1 flex flex-col min-h-0 pt-4">
               <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                
+                {/* 1. Selector Reactivo con Combobox y Búsqueda en Vivo */}
+                <ProductCombobox
+                  label="Producto Físico a Ajustar"
+                  required
+                  theme="amber"
+                  products={products}
+                  value={form.product}
+                  onChange={(productId) => setForm((prev) => ({ ...prev, product: productId }))}
+                  placeholder="Escribe o busca el producto físico por nombre o categoría..."
+                  helperText="Solo se listan ítems físicos con existencias registradas en Kardex"
+                />
+
+                {/* 2. Selector Visual Tipo Switch / Cards: Tipo de Ajuste */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Producto Físico *
+                    Sentido del Ajuste *
                   </label>
-                  <select
-                    value={form.product}
-                    onChange={(e) => handleFormProductChange(e.target.value)}
-                    required
-                    className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-3 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
-                  >
-                    <option value="">Selecciona un producto...</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} (Stock actual: {p.stock} | CPP: C$ {parseFloat(p.cost_price).toFixed(2)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Tipo de Operación *
-                    </label>
-                    <select
-                      value={form.movement_type}
-                      onChange={(e) => setForm({ ...form, movement_type: e.target.value })}
-                      className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Opción 1: Merma / Salida (-) */}
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, adjustment_type: "OUT" }))}
+                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${
+                        isDeduction
+                          ? "bg-red-50/80 border-red-300 ring-2 ring-red-500/20 shadow-xs"
+                          : "bg-stone-50 border-stone-200 hover:bg-stone-100/60 opacity-80"
+                      }`}
                     >
-                      <option value="RESTOCK">Reabastecimiento / Compra (+)</option>
-                      <option value="ADJUSTMENT">Ajuste de Stock (±)</option>
-                    </select>
-                  </div>
+                      <div className={`p-2 rounded-xl shrink-0 ${isDeduction ? "bg-red-200 text-red-800" : "bg-stone-200 text-stone-600"}`}>
+                        <MinusCircle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className={`block text-xs font-bold ${isDeduction ? "text-red-950" : "text-slate-800"}`}>
+                          Faltante / Merma / Salida (-)
+                        </span>
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                          Apertura de bolsa para barra, roturas, vencimiento o pérdida.
+                        </p>
+                      </div>
+                    </button>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Cantidad {form.movement_type === "RESTOCK" ? "(Positiva)" : "(Ajuste)"} *
-                    </label>
-                    <input
-                      type="number"
-                      value={form.quantity}
-                      onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                      placeholder={form.movement_type === "RESTOCK" ? "Ej. 24" : "Ej. 5 ó -3"}
-                      required
-                      className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
-                    />
+                    {/* Opción 2: Sobrante / Entrada (+) */}
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, adjustment_type: "IN" }))}
+                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${
+                        !isDeduction
+                          ? "bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs"
+                          : "bg-stone-50 border-stone-200 hover:bg-stone-100/60 opacity-80"
+                      }`}
+                    >
+                      <div className={`p-2 rounded-xl shrink-0 ${!isDeduction ? "bg-emerald-200 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
+                        <PlusCircle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className={`block text-xs font-bold ${!isDeduction ? "text-emerald-950" : "text-slate-800"}`}>
+                          Sobrante / Entrada por Ajuste (+)
+                        </span>
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                          Conteo físico superior, devolución de muestra o corrección positiva.
+                        </p>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
-                {form.movement_type === "RESTOCK" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                        Costo Unitario de Compra (C$) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.unit_cost}
-                        onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
-                        placeholder="0.00"
-                        className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">Costo de factura para recalcular CPP</p>
+                {/* 3. Cantidad a Ajustar (Siempre número positivo) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Cantidad a {isDeduction ? "Deducir / Restar" : "Agregar / Sumar"} (Unidades) *
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Ingresa siempre un número entero positivo
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.quantity}
+                    onChange={(e) => setForm((prev) => ({ ...prev, quantity: e.target.value }))}
+                    placeholder="Ej. 1, 2, 5 (el sistema aplica el signo automáticamente)"
+                    required
+                    className={`w-full rounded-2xl bg-stone-50 border py-3 px-4 text-sm font-black text-slate-900 outline-none transition-all ${
+                      isStockInsufficient 
+                        ? "border-red-400 focus:ring-2 focus:ring-red-500/20 text-red-700" 
+                        : "border-stone-200/90 focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                    }`}
+                  />
+                </div>
+
+                {/* 4. Previsualización de Impacto en Stock */}
+                {selectedProductObj && (
+                  <div className="rounded-2xl bg-stone-50 p-3.5 border border-stone-200/80 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-bold border-b border-stone-200/60 pb-2">
+                      <span className="text-slate-600">Simulación del Impacto en Existencias:</span>
+                      <span className="text-slate-900 font-extrabold">{selectedProductObj.name}</span>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                        Nuevo Precio de Venta (C$)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.new_sale_price}
-                        onChange={(e) => setForm({ ...form, new_sale_price: e.target.value })}
-                        placeholder="Dejar vacío para conservar actual"
-                        className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
-                      />
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-2 rounded-xl bg-white border border-stone-200/60">
+                        <span className="block text-[10px] text-slate-400 uppercase font-semibold">Stock Actual</span>
+                        <span className="text-sm font-black text-slate-800">{currentStock} uds</span>
+                      </div>
+
+                      <div className={`p-2 rounded-xl border ${isDeduction ? "bg-red-50/60 border-red-200" : "bg-emerald-50/60 border-emerald-200"}`}>
+                        <span className="block text-[10px] uppercase font-semibold text-slate-500">Ajuste</span>
+                        <span className={`text-sm font-black ${isDeduction ? "text-red-700" : "text-emerald-700"}`}>
+                          {deltaQty > 0 ? `+${deltaQty}` : deltaQty} uds
+                        </span>
+                      </div>
+
+                      <div className={`p-2 rounded-xl border ${isStockInsufficient ? "bg-red-100 border-red-300" : "bg-white border-stone-200/60"}`}>
+                        <span className="block text-[10px] text-slate-400 uppercase font-semibold">Stock Resultante</span>
+                        <span className={`text-sm font-black ${isStockInsufficient ? "text-red-700" : "text-slate-900"}`}>
+                          {projectedStock} uds
+                        </span>
+                      </div>
                     </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                      <span>Costo CPP: <strong className="text-slate-700">C$ {unitCost.toFixed(2)}</strong></span>
+                      <span>Impacto Contable: <strong className={estimatedMonetaryImpact >= 0 ? "text-emerald-700" : "text-red-600"}>
+                        {estimatedMonetaryImpact >= 0 ? `+C$ ${estimatedMonetaryImpact.toFixed(2)}` : `-C$ ${Math.abs(estimatedMonetaryImpact).toFixed(2)}`}
+                      </strong></span>
+                    </div>
+
+                    {isStockInsufficient && (
+                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-red-100 border border-red-200 text-red-900 text-xs font-semibold">
+                        <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>No puedes reducir más unidades de las disponibles en inventario ({currentStock} uds).</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
+                {/* 5. Campo OBLIGATORIO de Motivo / Justificación */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Motivo / Observaciones / N° Factura
-                  </label>
-                  <input
-                    type="text"
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-amber-800" />
+                      <span>Motivo / Justificación del Ajuste *</span>
+                    </label>
+                    <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      Obligatorio
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows="2"
                     value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    placeholder="Ej. Factura proveedor #4092 o merma por caducidad"
-                    className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                    onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Describe detalladamente la razón de este ajuste contable..."
+                    required
+                    className="w-full rounded-2xl bg-stone-50 border border-stone-200/90 py-2.5 px-4 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 resize-none"
                   />
+
+                  {/* Chips de sugerencias rápidas */}
+                  <div className="mt-2 space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Sugerencias Rápidas:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {SUGGESTED_REASONS.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setForm((prev) => ({ ...prev, notes: suggestion }))}
+                          className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-amber-100 hover:text-amber-900 border border-stone-200 text-[11px] font-medium text-slate-600 transition-colors"
+                        >
+                          + {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+
               </div>
 
+              {/* Botones de Acción */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100 flex-shrink-0 mt-3">
                 <button
                   type="button"
@@ -643,16 +752,16 @@ export default function Kardex() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="rounded-2xl bg-gradient-to-r from-amber-700 to-amber-900 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-amber-950/20 hover:from-amber-800 hover:to-amber-950 disabled:opacity-50 transition-all flex items-center gap-2"
+                  disabled={submitting || isStockInsufficient || !form.notes.trim()}
+                  className="rounded-2xl bg-gradient-to-r from-amber-700 to-amber-900 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-amber-950/20 hover:from-amber-800 hover:to-amber-950 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
                   {submitting ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Guardando...</span>
+                      <span>Guardando Ajuste...</span>
                     </>
                   ) : (
-                    <span>Confirmar Movimiento</span>
+                    <span>Confirmar Ajuste</span>
                   )}
                 </button>
               </div>
@@ -664,4 +773,3 @@ export default function Kardex() {
     </div>
   );
 }
-
