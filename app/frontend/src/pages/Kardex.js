@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import axiosInstance from "../axiosConfig";
 import { useToast } from "../context/ToastContext";
 import ProductCombobox from "../components/ProductCombobox";
+import Pagination from "../components/Pagination";
 import { 
   BookOpen, 
   Search, 
@@ -90,6 +91,20 @@ export default function Kardex() {
       return matchesSearch && matchesProduct && matchesType;
     });
   }, [movements, searchTerm, selectedProduct, selectedType]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Resetear página al filtrar o buscar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedProduct, selectedType]);
+
+  // Movimientos de la página actual
+  const paginatedMovements = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredMovements.slice(start, start + PAGE_SIZE);
+  }, [filteredMovements, currentPage]);
 
   // Métricas calculadas del Kardex
   const metrics = useMemo(() => {
@@ -399,10 +414,10 @@ export default function Kardex() {
           </div>
         </div>
 
-        {/* Contenedor de la Tabla con metodología CPP */}
-        <div className="overflow-x-auto rounded-2xl border border-stone-200/80">
+        {/* Contenedor de la Tabla con Scroll Desacoplado y Cabecera Fija */}
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto rounded-2xl border border-stone-200/80 custom-scrollbar">
           <table className="w-full text-left text-sm text-slate-700">
-            <thead className="bg-[#FAF6F0] text-[11px] font-bold uppercase tracking-wider text-[#5F3B1A] border-b border-stone-200">
+            <thead className="sticky top-0 z-10 bg-[#FAF6F0] text-[11px] font-bold uppercase tracking-wider text-[#5F3B1A] border-b border-stone-200 shadow-2xs">
               <tr>
                 <th className="py-3.5 px-4">Fecha & Hora</th>
                 <th className="py-3.5 px-4">Producto & Departamento</th>
@@ -434,7 +449,7 @@ export default function Kardex() {
                   </td>
                 </tr>
               ) : (
-                filteredMovements.map((item) => {
+                paginatedMovements.map((item) => {
                   const isPositive = item.quantity > 0;
                   const dateObj = new Date(item.created_at);
                   const formattedDate = dateObj.toLocaleDateString("es-ES", {
@@ -530,13 +545,22 @@ export default function Kardex() {
             </tbody>
           </table>
         </div>
+
+        {/* Controles de Paginación */}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredMovements.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemName="movimientos de stock"
+        />
       </div>
 
       {/* ==================================================== */}
       {/* MODAL INTUITIVO DE AJUSTE MANUAL DE INVENTARIO       */}
       {/* ==================================================== */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-stone-200 my-auto max-h-[90vh] flex flex-col">
             {/* Cabecera del Modal */}
             <div className="flex items-center justify-between border-b border-stone-100 pb-4 flex-shrink-0">

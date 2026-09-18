@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axiosInstance from "../axiosConfig";
 import { useToast } from "../context/ToastContext";
+import Pagination from "../components/Pagination";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -100,6 +101,20 @@ export default function Reports() {
       return true;
     });
   }, [salesList, searchTerm, selectedPaymentFilter, datePreset, startDate, endDate]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Resetear página al filtrar o buscar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedPaymentFilter, datePreset, startDate, endDate]);
+
+  // Ventas de la página actual
+  const paginatedSales = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredSales.slice(start, start + PAGE_SIZE);
+  }, [filteredSales, currentPage]);
 
   // Totales dinámicos de las ventas filtradas
   const filteredMetrics = useMemo(() => {
@@ -667,10 +682,10 @@ export default function Reports() {
           </span>
         </div>
 
-        {/* Contenedor de la Tabla */}
-        <div className="overflow-x-auto rounded-2xl border border-stone-200/80">
+        {/* Contenedor de la Tabla con Scroll Desacoplado y Cabecera Fija */}
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto rounded-2xl border border-stone-200/80 custom-scrollbar">
           <table className="w-full text-left text-sm text-slate-700">
-            <thead className="bg-[#FAF6F0] text-[11px] font-bold uppercase tracking-wider text-[#5F3B1A] border-b border-stone-200">
+            <thead className="sticky top-0 z-10 bg-[#FAF6F0] text-[11px] font-bold uppercase tracking-wider text-[#5F3B1A] border-b border-stone-200 shadow-2xs">
               <tr>
                 <th className="py-3.5 px-4">Ticket ID</th>
                 <th className="py-3.5 px-4">Fecha & Hora</th>
@@ -697,7 +712,7 @@ export default function Reports() {
                   </td>
                 </tr>
               ) : (
-                filteredSales.map((sale) => {
+                paginatedSales.map((sale) => {
                   const dateObj = new Date(sale.created_at);
                   const formattedDate = dateObj.toLocaleDateString("es-ES", {
                     day: "2-digit",
@@ -749,13 +764,22 @@ export default function Reports() {
             </tbody>
           </table>
         </div>
+
+        {/* Controles de Paginación */}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredSales.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemName="tickets de venta"
+        />
       </div>
 
       {/* ==================================================== */}
       {/* MODAL DE DESGLOSE DE VENTA / TICKET (ESPACIOSO)      */}
       {/* ==================================================== */}
       {selectedSaleDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-stone-200 my-auto max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-stone-100 pb-4 flex-shrink-0">
               <div>

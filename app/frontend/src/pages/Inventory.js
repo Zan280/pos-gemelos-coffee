@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import axiosInstance from "../axiosConfig";
 import { useToast } from "../context/ToastContext";
 import ProductCombobox from "../components/ProductCombobox";
+import Pagination from "../components/Pagination";
 import { 
   Package, 
   Search, 
@@ -129,6 +130,20 @@ export default function Inventory() {
       return true;
     });
   }, [products, searchTerm, activeFilter, selectedCategoryFilter]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Resetear página al filtrar o buscar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeFilter, selectedCategoryFilter]);
+
+  // Ítems de la página actual
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredProducts.slice(start, start + PAGE_SIZE);
+  }, [filteredProducts, currentPage]);
 
   // Lista de productos físicos disponibles para entradas de inventario
   const physicalProducts = useMemo(() => {
@@ -595,10 +610,10 @@ export default function Inventory() {
           </div>
         </div>
 
-        {/* Contenedor de Tabla */}
-        <div className="overflow-x-auto rounded-2xl border border-slate-200/80">
+        {/* Contenedor de Tabla con Scroll Desacoplado y Cabecera Fija */}
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto rounded-2xl border border-slate-200/80 custom-scrollbar">
           <table className="w-full text-left text-sm text-slate-700">
-            <thead className="bg-[#FAF6F0] text-[11px] font-bold uppercase tracking-wider text-[#5F3B1A] border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-[#FAF6F0] text-[11px] font-bold uppercase tracking-wider text-[#5F3B1A] border-b border-slate-200 shadow-2xs">
               <tr>
                 <th className="py-3.5 px-4">Ítem / Catálogo</th>
                 <th className="py-3.5 px-4">Categoría</th>
@@ -626,7 +641,7 @@ export default function Inventory() {
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((p) => {
+                paginatedProducts.map((p) => {
                   const isService = p.item_type === "SERVICE";
                   const cost = parseFloat(p.cost_price || 0);
                   const price = parseFloat(p.price || 0);
@@ -766,13 +781,22 @@ export default function Inventory() {
             </tbody>
           </table>
         </div>
+
+        {/* Controles de Paginación */}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredProducts.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemName="productos / servicios"
+        />
       </div>
 
       {/* ==================================================== */}
       {/* MODAL CREAR / EDITAR PRODUCTO O SERVICIO (ESPACIOSO) */}
       {/* ==================================================== */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-3xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto">
             {/* Header Fijo */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
@@ -1038,7 +1062,7 @@ export default function Inventory() {
       {/* MODAL ENTRADA DE STOCK (CPP SIMULATOR - ESPACIOSO)   */}
       {/* ==================================================== */}
       {showRestockModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-3xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto">
             {/* Header Fijo */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
@@ -1219,7 +1243,7 @@ export default function Inventory() {
       {/* MODAL CONFIRMAR ELIMINACIÓN                          */}
       {/* ==================================================== */}
       {deleteModalProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 text-center">
             <div className="mx-auto h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-3">
               <Trash2 className="w-6 h-6" />

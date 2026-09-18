@@ -541,7 +541,7 @@ export default function Sales() {
       {/* MODAL DE CONFIRMACIÓN DE PAGO                        */}
       {/* ==================================================== */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -655,7 +655,7 @@ export default function Sales() {
       {/* MODAL DE TICKET / RECIBO DE VENTA EXITOSA           */}
       {/* ==================================================== */}
       {successModalData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col my-auto relative">
             {/* Botón de Cierre X */}
             <button
