@@ -938,7 +938,7 @@ export default function Inventory() {
                       placeholder="0.00"
                       value={form.price}
                       onChange={(e) => setForm({ ...form, price: e.target.value })}
-                      className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 font-semibold text-[#5F3B1A]"
+                      className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm font-semibold text-[#5F3B1A] outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">Precio final al cliente en caja POS</p>
                   </div>
@@ -1148,7 +1148,7 @@ export default function Inventory() {
                       placeholder="Precio vigente si se deja en blanco"
                       value={restockForm.new_sale_price}
                       onChange={(e) => setRestockForm({ ...restockForm, new_sale_price: e.target.value })}
-                      className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm text-slate-900 font-semibold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 text-[#5F3B1A]"
+                      className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm font-semibold text-[#5F3B1A] outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">Actualiza el precio de venta en caja si el costo cambió</p>
                   </div>

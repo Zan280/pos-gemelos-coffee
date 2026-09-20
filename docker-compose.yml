@@ -1,6 +1,6 @@
 services:
   # ----------------------------------------------------------------------------
-  # 1. BASE DE DATOS: MySQL 8.0
+  # 1. BASE DE DATOS: MySQL 8.0 (Aislado de Internet)
   # ----------------------------------------------------------------------------
   db:
     image: mysql:8.0
@@ -16,10 +16,9 @@ services:
       - MYSQL_PASSWORD=${SQL_PASSWORD:-pos_user_db_password_example}
     volumes:
       - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    # PUERTO 3306 ELIMINADO DEL HOST: No expuesto a internet
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${SQL_ROOT_PASSWORD:-root_db_password_example}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${SQL_ROOT_PASSWORD:-root_db_password_example}" ]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -28,7 +27,7 @@ services:
       - gemelos_net
 
   # ----------------------------------------------------------------------------
-  # 2. BACKEND: Django REST Framework con Gunicorn
+  # 2. BACKEND: Django REST Framework con Gunicorn (Aislado de Internet)
   # ----------------------------------------------------------------------------
   backend:
     build:
@@ -54,8 +53,7 @@ services:
       - ./app/backend:/code
       - backend_static:/code/staticfiles
       - backend_media:/code/media
-    ports:
-      - "8000:8000"
+    # PUERTO 8000 ELIMINADO DEL HOST: Solo accesible internamente por Nginx
     depends_on:
       db:
         condition: service_healthy
@@ -63,7 +61,7 @@ services:
       - gemelos_net
 
   # ----------------------------------------------------------------------------
-  # 3. FRONTEND: React SPA servido por Nginx (Reverse Proxy /api/, /admin/, /media/)
+  # 3. FRONTEND: React SPA servido por Nginx (Único expuesto a Internet)
   # ----------------------------------------------------------------------------
   frontend:
     build:

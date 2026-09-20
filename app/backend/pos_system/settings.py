@@ -34,25 +34,48 @@ if env_path.exists():
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
+# ==============================================================================
+# CONFIGURACIÓN DE SEGURIDAD FASE 1 (PRODUCCIÓN HTTP)
+# ==============================================================================
+
+# 1. SECRET KEY: Forzada desde .env
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-demo-showcase-key')
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# 2. DEBUG: Forzado a False por defecto en producción
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't', 'yes')
 
-# Soporta tanto ALLOWED_HOSTS como DJANGO_ALLOWED_HOSTS, y separa por comas o espacios
+# 3. ALLOWED HOSTS
 allowed_hosts_raw = os.environ.get('ALLOWED_HOSTS') or os.environ.get('DJANGO_ALLOWED_HOSTS')
 if allowed_hosts_raw:
     delimiter = ',' if ',' in allowed_hosts_raw else ' '
     ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_raw.split(delimiter) if host.strip()]
 else:
-    ALLOWED_HOSTS = ['127.0.0.1', '127.0.0.1', 'localhost', '0.0.0.0', 'gemelos_backend']
+    ALLOWED_HOSTS = ['127.0.0.1', '127.0.0.1', 'localhost', 'gemelos_backend']
 
+# 4. CSRF TRUSTED ORIGINS
 csrf_trusted_str = os.environ.get('CSRF_TRUSTED_ORIGINS')
 if csrf_trusted_str:
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_str.split(',') if origin.strip()]
 else:
-    CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1', 'http://localhost']
+    CSRF_TRUSTED_ORIGINS = [
+        'http://127.0.0.1',
+        'http://127.0.0.1',
+        'http://localhost',
+    ]
+
+# 5. CABECERAS DE SEGURIDAD BÁSICAS (Compatibles con HTTP)
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'same-origin'
+
+# 6. COOKIES Y PROTOCOLOS (Mantener en False mientras no se use HTTPS)
+SESSION_COOKIE_SECURE = False        # Debe ser False en HTTP para permitir login
+CSRF_COOKIE_SECURE = False           # Debe ser False en HTTP para permitir envío de formularios
+SECURE_SSL_REDIRECT = False          # No forzar redirección HTTPS aún
+SESSION_COOKIE_HTTPONLY = True       # Protege la cookie de sesión contra lectura JS
+CSRF_COOKIE_HTTPONLY = False         # False para permitir que React lea el token si lo requiere
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # Application definition
 
