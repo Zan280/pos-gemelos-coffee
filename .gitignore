@@ -1,42 +1,16 @@
-# ==========================================
-# Gemelos Coffee POS - .gitignore
-# ==========================================
+# ==============================================================================
+# Gemelos Coffee POS - .gitignore (Public Portfolio Showcase)
+# ==============================================================================
 
-# 1. Datos y persistencia local (MySQL, SQLite, Media)
-data/
-data/**
-*.sql
-*.sqlite3
-db.sqlite3
-media/
-app/backend/media/
-app/backend/data/
-
-# 2. Secretos, variables de entorno y archivos de ejemplo
+# 1. Variables de entorno y secretos (Permitir plantillas .example)
 .env
 .env.*
 *.env
-.env-example
-.env.example
-*.env-example
-*.env.example
-app/backend/.env
-app/backend/.env.example
-app/backend/.env-example
-app/frontend/.env
-app/frontend/.env.example
-app/frontend/.env-example
+!.env.example
+!app/frontend/.env.example
+!app/backend/.env.example
 
-# 3. Dependencias (Node.js & Python)
-node_modules/
-**/node_modules/
-.cache/
-app/frontend/node_modules/
-app/backend/node_modules/
-env/
-venv/
-ENV/
-.env/
+# 2. Python y Django
 __pycache__/
 **/__pycache__/
 *.py[cod]
@@ -48,32 +22,48 @@ __pycache__/
 *.egg-info/
 .installed.cfg
 *.egg
+env/
+venv/
+ENV/
+.env/
+.venv/
+*.sqlite3
+db.sqlite3
 
-# 4. Compilaciones, artefactos y archivos temporales
+# 3. Frontend & Node.js
+node_modules/
+**/node_modules/
 build/
 app/frontend/build/
 dist/
 app/frontend/dist/
+.pnp/
+.pnp.js
 .cache/
 app/frontend/.cache/
+
+# 4. Logs y depuración
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# 5. Respaldos y archivos temporales
+*.save
+Dockerfile.save
+codigo_gemelos.txt
+**/codigo_gemelos.txt
 *.zip
 *.tar.gz
 *.rar
-codigo_gemelos.txt
-**/codigo_gemelos.txt
-Dockerfile.save
-*.save
+*.bak
+*.swp
+*.swo
+*~
 
-# 5. Sistema operativo y editores / IDEs
+# 6. Sistema Operativo y Editores / IDEs
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-*.swp
-*.swo
-*~

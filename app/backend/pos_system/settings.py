@@ -50,7 +50,7 @@ if allowed_hosts_raw:
     delimiter = ',' if ',' in allowed_hosts_raw else ' '
     ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_raw.split(delimiter) if host.strip()]
 else:
-    ALLOWED_HOSTS = ['127.0.0.1', '127.0.0.1', 'localhost', 'gemelos_backend']
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'gemelos_backend']
 
 # 4. CSRF TRUSTED ORIGINS
 csrf_trusted_str = os.environ.get('CSRF_TRUSTED_ORIGINS')
@@ -58,7 +58,6 @@ if csrf_trusted_str:
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_str.split(',') if origin.strip()]
 else:
     CSRF_TRUSTED_ORIGINS = [
-        'http://127.0.0.1',
         'http://127.0.0.1',
         'http://localhost',
     ]
